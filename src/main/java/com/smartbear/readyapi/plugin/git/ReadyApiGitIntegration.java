@@ -12,6 +12,7 @@ import com.eviware.soapui.plugins.vcs.VcsIntegration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationConfiguration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
+import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 
 import java.awt.Component;
 import java.io.File;
@@ -20,7 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-@VcsIntegrationConfiguration(name="Git", description = "Git Version Control System")
+@VcsIntegrationConfiguration(name = "Git", description = "Git Version Control System")
 public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public ActivationStatus activateFor(Project project) {
@@ -29,7 +30,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public RepositorySelectionGui buildRepositorySelectionGui(Project project) {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        return new GitRepositorySelectionGui(project);
     }
 
     @Override
@@ -39,7 +40,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public AuthenticationStatus authenticate() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+       return null;
     }
 
     @Override
