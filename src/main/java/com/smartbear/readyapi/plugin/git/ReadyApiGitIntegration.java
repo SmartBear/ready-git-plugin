@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Set;
 
 @VcsIntegrationConfiguration(name="Git", description = "Git Version Control System")
-public class GitIntegrationConfiguration implements VcsIntegration {
+public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public ActivationStatus activateFor(Project project) {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
