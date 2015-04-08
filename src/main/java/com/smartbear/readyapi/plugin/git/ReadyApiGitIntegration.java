@@ -12,11 +12,17 @@ import com.eviware.soapui.plugins.vcs.VcsIntegration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationConfiguration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.internal.storage.file.FileRepository;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.Repository;
 
 import java.awt.Component;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -87,12 +93,22 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public void revert(WsdlProject project, VcsUpdate vcsUpdate) throws VcsIntegrationException {
 
+
     }
 
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
-        return null;
+        final List<Ref> refList;
+        Git git = getGitProject(project);
+        try {
+            refList = git.tagList().call();
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+
+        return getTagSetFromRefList(refList);
     }
+
 
     @Override
     public void createTag(WsdlProject project, String s) {
@@ -103,4 +119,25 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public List<HistoryEntry> getFileHistory(WsdlProject project, File file) {
         return null;
     }
+
+    private Git getGitProject(WsdlProject project) {
+        final String localPath = project.getPath();
+        final Repository localRepo;
+
+        try {
+            localRepo = new FileRepository(localPath + "/.git");
+        } catch (IOException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+        return new Git(localRepo);
+    }
+
+    private Set<String> getTagSetFromRefList(List<Ref> refList) {
+        Set<String> tagSet = new HashSet<String>();
+        for (Ref ref : refList) {
+            tagSet.add(ref.getName());
+        }
+        return tagSet;
+    }
+
 }
