@@ -6,7 +6,8 @@ import com.eviware.soapui.support.UISupport;
 import net.miginfocom.swing.MigLayout;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.merge.MergeStrategy;
 
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
@@ -17,14 +18,12 @@ import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 
 public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
@@ -32,6 +31,7 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
     private JTextField usernameField;
     private JTextField passwordField;
     private Project project;
+    private JTextField commitMessageField;
 
     public GitRepositorySelectionGui(Project project) {
         this.project = project;
@@ -39,33 +39,40 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
     @Override
     public Component getComponent() {
-        JPanel panel = new JPanel(new MigLayout("wrap 1", "8[fill,grow]8[fill,grow]8", "8[]8"));
+        JPanel panel = new JPanel(new MigLayout("wrap 2", "8[shrink]8[grow,fill]8", "8[]8"));
 
         panel.add(new JLabel("Repository URL:"));
         repositoryUrlField = new JTextField();
         repositoryUrlField.getDocument().addDocumentListener(new RepositoryUrlListener());
-        repositoryUrlField.setPreferredSize(new Dimension(300, 30));
         panel.add(repositoryUrlField);
 
         panel.add(new JLabel("Username:"));
         usernameField = new JTextField();
-        usernameField.setPreferredSize(new Dimension(150, 30));
         panel.add(usernameField);
 
         panel.add(new Label("Password:"));
         passwordField = new JPasswordField();
-        passwordField.setPreferredSize(new Dimension(150, 30));
         panel.add(passwordField);
 
-        JButton authenticateButton = new JButton(new AuthenticateAction());
-        authenticateButton.setPreferredSize(new Dimension(100, 30));
-        panel.add(authenticateButton);
+        panel.add(new Label("Commit message: "));
+        commitMessageField = new JTextField();
+        panel.add(commitMessageField);
+
+        JPanel buttonPanel = new JPanel(new MigLayout("", "8[]8[]0", "0[]0"));
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.setPreferredSize(UISupport.getPreferredButtonSize());
+        JButton shareProjectButton = new JButton(new ShareProjectAction());
+        shareProjectButton.setPreferredSize(UISupport.getPreferredButtonSize());
+        buttonPanel.add(cancelButton);
+        buttonPanel.add(shareProjectButton);
+        panel.add(buttonPanel, "r, spanx");
 
         return panel;
     }
 
     @Override
     public void createRemoteRepository() {
+        throw new UnsupportedOperationException("Creating a remote git repository is not supported. The repository has to exist before sharing a project.");
     }
 
     @Override
@@ -105,9 +112,9 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
         }
     }
 
-    private class AuthenticateAction extends AbstractAction {
-        private AuthenticateAction() {
-            super("Authenticate");
+    private class ShareProjectAction extends AbstractAction {
+        private ShareProjectAction() {
+            super("Share project");
         }
 
         @Override
@@ -117,21 +124,28 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
         private void validateRepositoryURL() {
             try {
-                URL repositoryURL = new URL(repositoryUrlField.getText());
-                Git git = Git.cloneRepository()
-                        .setRemote("origin")
-                        .setURI(repositoryUrlField.getText())
-                        .setCredentialsProvider(new UsernamePasswordCredentialsProvider(usernameField.getText(), passwordField.getText()))
-                        .setDirectory(new File("D:/IdeaProjects/Smartbear/test-git-plugin"))
-                        .call();
+                Git git = initRepository();
 
+                git.add().addFilepattern(".").call();
+                git.commit().setMessage(commitMessageField.getText()).call();
+                git.pull().setStrategy(MergeStrategy.OURS).call();
+                git.push().setPushAll().call();
+                UISupport.showInfoMessage("Your project has been successfully shared.");
             } catch (MalformedURLException e) {
                 UISupport.showErrorMessage("Invalid repository URL: " + repositoryUrlField.getText());
-            } catch (IOException e) {
-                UISupport.showErrorMessage("Incorrect project dir: " + project.getPath());
-            } catch (GitAPIException e) {
-                e.printStackTrace();
+            } catch (GitAPIException | IOException e) {
+                UISupport.showErrorMessage("Problem: " + e.getMessage());
             }
+        }
+
+        private Git initRepository() throws GitAPIException, IOException {
+            // TODO: do not re-init if git directory already exists
+            Git git = Git.init().setDirectory(new File(project.getPath())).call();
+            StoredConfig config = git.getRepository().getConfig();
+            config.setString("remote", "origin", "url", repositoryUrlField.getText());
+            config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
+            config.save();
+            return git;
         }
     }
 }
