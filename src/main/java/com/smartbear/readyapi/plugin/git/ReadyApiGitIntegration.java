@@ -17,6 +17,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 
 import java.awt.Component;
 import java.io.File;
@@ -37,7 +38,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public RepositorySelectionGui buildRepositorySelectionGui(WsdlProject project) {
-        return null;
+        return new GitRepositorySelectionGui(project);
     }
 
     @Override
@@ -93,7 +94,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public void revert(WsdlProject project, VcsUpdate vcsUpdate) throws VcsIntegrationException {
 
-
     }
 
     @Override
@@ -108,7 +108,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         return getTagSetFromRefList(refList);
     }
-
 
     @Override
     public void createTag(WsdlProject project, String s) {
