@@ -12,6 +12,7 @@ import com.eviware.soapui.plugins.vcs.VcsIntegration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationConfiguration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
+import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 
 import java.awt.Component;
 import java.io.File;
@@ -31,7 +32,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public RepositorySelectionGui buildRepositorySelectionGui(WsdlProject project) {
-        return null;
+        return new GitRepositorySelectionGui(project);
     }
 
     @Override
