@@ -69,7 +69,7 @@ public class ReadyApiGitIntegrationTest {
     @Test
     public void testCreateTag() throws Exception {
         final int numberOfTags = git.tagList().call().size();
-        gitIntegration.createTag(dummyProject, "V0.2");
+        gitIntegration.createTag(dummyProject, "V0.7");
         assertThat(git.tagList().call().size(), greaterThan(numberOfTags));
     }
 

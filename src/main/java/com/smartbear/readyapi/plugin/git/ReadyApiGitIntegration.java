@@ -12,13 +12,15 @@ import com.eviware.soapui.plugins.vcs.VcsIntegration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationConfiguration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
+import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
-import org.eclipse.jgit.transport.PushResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.Component;
 import java.io.File;
@@ -30,6 +32,8 @@ import java.util.Set;
 
 @VcsIntegrationConfiguration(name = "Git", description = "Git Version Control System")
 public class ReadyApiGitIntegration implements VcsIntegration {
+
+    private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
 
 
     @Override
@@ -117,8 +121,11 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void createTag(WsdlProject project, String tagName) {
         Git git = getGitProject(project);
         try {
-            Ref tag = git.tag().setName(tagName).call();
-            final Iterable<PushResult> pushResults = git.push().setPushTags().call();
+            git.tag().setName(tagName).call();
+            git.push().setPushTags().call();
+        } catch (RefAlreadyExistsException re) {
+            logger.warn("Tag already exists: " + tagName);
+            throw new IllegalArgumentException("Tag already exists: " + tagName);
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
@@ -135,6 +142,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         try {
             localRepo = new FileRepository(localPath + "/.git");
+            if(!localRepo.getObjectDatabase().exists()){
+                logger.error("No git repo exist in: " + localPath);
+                throw new IllegalStateException("No git repo exist in: " + localPath);
+            }
         } catch (IOException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
