@@ -82,7 +82,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public void moveFile(WsdlProject project, File file) throws IOException {
+    public void moveFile(WsdlProject project, File file, File targetFile) throws IOException {
 
     }
 
@@ -92,7 +92,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public void revert(WsdlProject project, VcsUpdate vcsUpdate) throws VcsIntegrationException {
+    public void revert(WsdlProject project, Collection<VcsUpdate> vcsUpdates) throws VcsIntegrationException {
 
     }
 
