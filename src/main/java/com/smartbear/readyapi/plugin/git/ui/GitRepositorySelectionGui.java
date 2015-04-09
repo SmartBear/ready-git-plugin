@@ -2,7 +2,7 @@ package com.smartbear.readyapi.plugin.git.ui;
 
 import com.eviware.soapui.model.project.Project;
 import com.eviware.soapui.plugins.vcs.RepositorySelectionGui;
-import com.eviware.soapui.support.UISupport;
+import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import net.miginfocom.swing.MigLayout;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -13,14 +13,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.Component;
 import java.awt.Label;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 
 public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
@@ -40,7 +37,6 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
         panel.add(new JLabel("Repository URL:"));
         repositoryUrlField = new JTextField();
-        repositoryUrlField.getDocument().addDocumentListener(new RepositoryUrlListener());
         panel.add(repositoryUrlField);
 
         panel.add(new JLabel("Username:"));
@@ -58,22 +54,16 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
     }
 
     @Override
-    public void createRemoteRepository() { // TODO: Rename to shareProject or something
-        if (isValidInput()){
-            try {
-                Git git = initRepository();
+    public void createRemoteRepository() {
+        try {
+            Git git = initRepository();
 
-                git.add().addFilepattern(".").call();
-                git.commit().setMessage(commitMessageField.getText()).call();
-                git.pull().setStrategy(MergeStrategy.OURS).call();
-                git.push().setPushAll().call();
-
-                UISupport.showInfoMessage("Your project has been successfully shared.");
-            } catch (MalformedURLException e) {
-                UISupport.showErrorMessage("Invalid repository URL: " + repositoryUrlField.getText());
-            } catch (GitAPIException | IOException e) {
-                UISupport.showErrorMessage("Problem: " + e.getMessage());
-            }
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage(commitMessageField.getText()).call();
+            git.pull().setStrategy(MergeStrategy.OURS).call();
+            git.push().setPushAll().call();
+        } catch (GitAPIException | IOException e) {
+            throw new VcsIntegrationException("Failed to share project", e);
         }
     }
 
@@ -90,12 +80,12 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
     @Override
     public String getRemoteRepositoryId() {
-        return null;
+        return repositoryUrlField.getText();
     }
 
     @Override
     public boolean isValidInput() {
-        return true;
+        return true; // TODO: validate input..
     }
 
     @Override
@@ -105,24 +95,4 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
     @Override
     public void removePropertyChangeListener(PropertyChangeListener propertyChangeListener) {
     }
-
-    private class RepositoryUrlListener implements DocumentListener {
-        @Override
-        public void insertUpdate(DocumentEvent event) {
-            validateRepositoryURL(repositoryUrlField.getText());
-        }
-
-        @Override
-        public void removeUpdate(DocumentEvent event) {
-        }
-
-        @Override
-        public void changedUpdate(DocumentEvent event) {
-        }
-
-        private void validateRepositoryURL(String text) {
-
-        }
-    }
-
 }
