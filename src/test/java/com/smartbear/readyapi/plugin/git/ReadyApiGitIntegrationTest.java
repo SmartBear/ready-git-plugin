@@ -16,6 +16,7 @@
 package com.smartbear.readyapi.plugin.git;
 
 import com.eviware.soapui.impl.wsdl.WsdlProjectPro;
+import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.smartbear.ready.util.ReadyTools;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
@@ -25,13 +26,17 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -81,6 +86,50 @@ public class ReadyApiGitIntegrationTest {
         File gitConfig = new File(localPath + "/.git");
         FileUtils.forceDelete(gitConfig);
         gitIntegration.getAvailableTags(dummyProject);
+    }
+
+    @Ignore("Depends on external Github repos")
+    @Test
+    public void getUpdates() throws Exception {
+        int added=0, modified=0, deleted=0;
+        int expectedAdds=1, expectedModifications=1, expectedDeletions=1;
+        File changes = new File(localPath + "/newfile");
+        changes.createNewFile();
+        updateFile();
+        deleteFile();
+        final Collection<VcsUpdate> updates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
+
+        for(VcsUpdate update: updates){
+            if (update.getType() == VcsUpdate.VcsUpdateType.ADDED){
+                added++;
+            }
+            else if (update.getType() == VcsUpdate.VcsUpdateType.MODIFIED){
+                modified++;
+            }
+            else if (update.getType() == VcsUpdate.VcsUpdateType.DELETED){
+                deleted++;
+            }
+        }
+        assertThat(added, is(expectedAdds));
+        assertThat(modified, is(expectedModifications));
+        assertThat(deleted, is(expectedDeletions));
+    }
+
+    private void updateFile() throws IOException {
+        String data = " This content will append to the end of the file";
+        File file = new File(localPath + "/README.md");
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+        FileWriter fileWritter = new FileWriter(file, true);
+        BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+        bufferWritter.write(data);
+        bufferWritter.close();
+    }
+
+    private void deleteFile() throws IOException {
+        File file = new File(localPath + "/settings.xml");
+        FileUtils.forceDelete(file);
     }
 
 

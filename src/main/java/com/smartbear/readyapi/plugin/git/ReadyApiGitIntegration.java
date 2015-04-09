@@ -14,6 +14,7 @@ import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
@@ -25,10 +26,15 @@ import org.slf4j.LoggerFactory;
 import java.awt.Component;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.ADDED;
+import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.DELETED;
+import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.MODIFIED;
 
 @VcsIntegrationConfiguration(name = "Git", description = "Git Version Control System")
 public class ReadyApiGitIntegration implements VcsIntegration {
@@ -68,7 +74,53 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public Collection<VcsUpdate> getLocalRepositoryUpdates(WsdlProject project) {
-        return null;
+        final Git git = getGitObject(project);
+        Collection<VcsUpdate> updates = new ArrayList<>();
+
+        try {
+            final Status status = git.status().call();
+            fillLocalUpdates(project, updates, status);
+        } catch (GitAPIException e) {
+            e.printStackTrace();
+        }
+
+        return updates;
+    }
+
+    private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) {
+        for(String fileAdded: status.getAdded()){
+            updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
+        }
+
+        for(String fileChanged: status.getChanged()){
+            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
+        }
+
+        for(String fileChanged: status.getRemoved()){
+            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
+        }
+
+        for(String fileChanged: status.getMissing()){
+            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
+        }
+
+        for(String fileChanged: status.getModified()){
+            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
+        }
+
+        for(String fileChanged: status.getUntracked()){
+            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+        }
+
+        for(String fileChanged: status.getUntrackedFolders()){
+            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+        }
+
+        for(String fileChanged: status.getConflicting()){
+            final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
+            update.setConflictingUpdate(true);
+            updates.add(update);
+        }
     }
 
     @Override
@@ -92,9 +144,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public CommitResult commit(Collection<VcsUpdate> vcsUpdates) {
+    public CommitResult commit(Collection<VcsUpdate> vcsUpdates, String s) {
         return null;
     }
+
 
     @Override
     public void revert(Collection<VcsUpdate> vcsUpdates) throws VcsIntegrationException {
