@@ -9,8 +9,6 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
 
-import javax.swing.AbstractAction;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
@@ -19,7 +17,6 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.Component;
 import java.awt.Label;
-import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
@@ -57,22 +54,38 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
         panel.add(new Label("Commit message: "));
         commitMessageField = new JTextField();
         panel.add(commitMessageField);
-
-        JPanel buttonPanel = new JPanel(new MigLayout("", "8[]8[]0", "0[]0"));
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.setPreferredSize(UISupport.getPreferredButtonSize());
-        JButton shareProjectButton = new JButton(new ShareProjectAction());
-        shareProjectButton.setPreferredSize(UISupport.getPreferredButtonSize());
-        buttonPanel.add(cancelButton);
-        buttonPanel.add(shareProjectButton);
-        panel.add(buttonPanel, "r, spanx");
-
         return panel;
     }
 
     @Override
-    public void createRemoteRepository() {
-        throw new UnsupportedOperationException("Creating a remote git repository is not supported. The repository has to exist before sharing a project.");
+    public void createRemoteRepository() { // TODO: Rename to shareProject or something
+        if (isValidInput()){
+            try {
+                Git git = initRepository();
+
+                git.add().addFilepattern(".").call();
+                git.commit().setMessage(commitMessageField.getText()).call();
+                git.pull().setStrategy(MergeStrategy.OURS).call();
+                git.push().setPushAll().call();
+
+                UISupport.showInfoMessage("Your project has been successfully shared.");
+            } catch (MalformedURLException e) {
+                UISupport.showErrorMessage("Invalid repository URL: " + repositoryUrlField.getText());
+            } catch (GitAPIException | IOException e) {
+                UISupport.showErrorMessage("Problem: " + e.getMessage());
+            }
+        }
+    }
+
+    private Git initRepository() throws GitAPIException, IOException {
+        Git git = Git.init().setDirectory(new File(project.getPath())).call();
+
+        StoredConfig config = git.getRepository().getConfig();
+        config.setString("remote", "origin", "url", repositoryUrlField.getText());
+        config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
+        config.save();
+
+        return git;
     }
 
     @Override
@@ -82,7 +95,7 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
     @Override
     public boolean isValidInput() {
-        return false;
+        return true;
     }
 
     @Override
@@ -112,40 +125,4 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
         }
     }
 
-    private class ShareProjectAction extends AbstractAction {
-        private ShareProjectAction() {
-            super("Share project");
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            validateRepositoryURL();
-        }
-
-        private void validateRepositoryURL() {
-            try {
-                Git git = initRepository();
-
-                git.add().addFilepattern(".").call();
-                git.commit().setMessage(commitMessageField.getText()).call();
-                git.pull().setStrategy(MergeStrategy.OURS).call();
-                git.push().setPushAll().call();
-                UISupport.showInfoMessage("Your project has been successfully shared.");
-            } catch (MalformedURLException e) {
-                UISupport.showErrorMessage("Invalid repository URL: " + repositoryUrlField.getText());
-            } catch (GitAPIException | IOException e) {
-                UISupport.showErrorMessage("Problem: " + e.getMessage());
-            }
-        }
-
-        private Git initRepository() throws GitAPIException, IOException {
-            // TODO: do not re-init if git directory already exists
-            Git git = Git.init().setDirectory(new File(project.getPath())).call();
-            StoredConfig config = git.getRepository().getConfig();
-            config.setString("remote", "origin", "url", repositoryUrlField.getText());
-            config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
-            config.save();
-            return git;
-        }
-    }
 }
