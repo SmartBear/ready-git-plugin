@@ -100,11 +100,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
         Git git = getGitProject(project);
+
         try {
+            git.fetch().call(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
             refList = git.tagList().call();
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
+        git.getRepository().close();
 
         return getTagSetFromRefList(refList);
     }
