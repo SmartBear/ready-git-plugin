@@ -104,7 +104,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
-        Git git = getGitProject(project);
+        Git git = getGitObject(project);
 
         try {
             git.fetch().call(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
@@ -119,7 +119,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public void createTag(WsdlProject project, String tagName) {
-        Git git = getGitProject(project);
+        Git git = getGitObject(project);
         try {
             git.tag().setName(tagName).call();
             git.push().setPushTags().call();
@@ -136,7 +136,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return null;
     }
 
-    private Git getGitProject(WsdlProject project) {
+    private Git getGitObject(WsdlProject project) {
         final String localPath = project.getPath();
         final Repository localRepo;
 
