@@ -20,6 +20,7 @@ import com.smartbear.ready.util.ReadyTools;
 import org.eclipse.jgit.api.Git;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 
@@ -27,6 +28,7 @@ import java.io.File;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -56,9 +58,19 @@ public class ReadyApiGitIntegrationTest {
         git.getRepository().close();
     }
 
+    @Ignore("Depends on external Github repos")
     @Test
-    public void testCreateTag() throws Exception {
+    public void testListAvailableTags() throws Exception {
         final Set<String> availableTags = gitIntegration.getAvailableTags(dummyProject);
         assertThat(availableTags.size(), greaterThanOrEqualTo(1));
     }
+
+    @Ignore("Depends on external Github repos")
+    @Test
+    public void testCreateTag() throws Exception {
+        final int numberOfTags = git.tagList().call().size();
+        gitIntegration.createTag(dummyProject, "V0.2");
+        assertThat(git.tagList().call().size(), greaterThan(numberOfTags));
+    }
+
 }

@@ -18,6 +18,7 @@ import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
+import org.eclipse.jgit.transport.PushResult;
 
 import java.awt.Component;
 import java.io.File;
@@ -113,8 +114,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public void createTag(WsdlProject project, String s) {
-
+    public void createTag(WsdlProject project, String tagName) {
+        Git git = getGitProject(project);
+        try {
+            Ref tag = git.tag().setName(tagName).call();
+            final Iterable<PushResult> pushResults = git.push().setPushTags().call();
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
     }
 
     @Override
