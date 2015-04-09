@@ -17,6 +17,7 @@ package com.smartbear.readyapi.plugin.git;
 
 import com.eviware.soapui.impl.wsdl.WsdlProjectPro;
 import com.smartbear.ready.util.ReadyTools;
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.junit.After;
 import org.junit.Before;
@@ -25,6 +26,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -72,5 +74,14 @@ public class ReadyApiGitIntegrationTest {
         gitIntegration.createTag(dummyProject, "V0.7");
         assertThat(git.tagList().call().size(), greaterThan(numberOfTags));
     }
+
+    @Ignore("Depends on external Github repos")
+    @Test(expected=IllegalStateException.class)
+    public void throwsIllegalStateExceptionForInvalidRepo() throws IOException {
+        File gitConfig = new File(localPath + "/.git");
+        FileUtils.forceDelete(gitConfig);
+        gitIntegration.getAvailableTags(dummyProject);
+    }
+
 
 }
