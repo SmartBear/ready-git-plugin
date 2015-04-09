@@ -87,12 +87,12 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public CommitResult commit(WsdlProject project, Collection<VcsUpdate> vcsUpdates) {
+    public CommitResult commit(Collection<VcsUpdate> vcsUpdates) {
         return null;
     }
 
     @Override
-    public void revert(WsdlProject project, Collection<VcsUpdate> vcsUpdates) throws VcsIntegrationException {
+    public void revert(Collection<VcsUpdate> vcsUpdates) throws VcsIntegrationException {
 
     }
 
