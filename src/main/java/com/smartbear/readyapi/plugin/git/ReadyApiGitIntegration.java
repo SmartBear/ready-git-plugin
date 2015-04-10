@@ -20,6 +20,9 @@ import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +53,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public RepositorySelectionGui buildRepositorySelectionGui(WsdlProject project) {
-        return new GitRepositorySelectionGui(project);
+        return new GitRepositorySelectionGui(project, this);
     }
 
     @Override
@@ -90,35 +93,35 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) {
-        for(String fileAdded: status.getAdded()){
+        for (String fileAdded : status.getAdded()) {
             updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
         }
 
-        for(String fileChanged: status.getChanged()){
+        for (String fileChanged : status.getChanged()) {
             updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getRemoved()){
+        for (String fileChanged : status.getRemoved()) {
             updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getMissing()){
+        for (String fileChanged : status.getMissing()) {
             updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getModified()){
+        for (String fileChanged : status.getModified()) {
             updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getUntracked()){
+        for (String fileChanged : status.getUntracked()) {
             updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getUntrackedFolders()){
+        for (String fileChanged : status.getUntrackedFolders()) {
             updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getConflicting()){
+        for (String fileChanged : status.getConflicting()) {
             final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
             update.setConflictingUpdate(true);
             updates.add(update);
@@ -167,7 +170,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }*/
         final Iterable<PushResult> pushResults = commitUpdates(vcsUpdates, commitMessage, git);
 
-        return new CommitResult(CommitResult.CommitStatus.SUCCESSFUL,"");
+        return new CommitResult(CommitResult.CommitStatus.SUCCESSFUL, "");
     }
 
     private Iterable<PushResult> commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, Git git) {
@@ -238,7 +241,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         try {
             localRepo = new FileRepository(localPath + "/.git");
-            if(!localRepo.getObjectDatabase().exists()){
+            if (!localRepo.getObjectDatabase().exists()) {
                 logger.error("No git repo exist in: " + localPath);
                 throw new IllegalStateException("No git repo exist in: " + localPath);
             }
@@ -254,6 +257,30 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             tagSet.add(ref.getName());
         }
         return tagSet;
+    }
+
+
+    public void shareProject(WsdlProject project, String repositoryPath, String commitMessage, CredentialsProvider credentialsProvider) {
+        try {
+            Git git = initLocalRepository(project, repositoryPath);
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage(commitMessage).call();
+            git.pull().setCredentialsProvider(credentialsProvider).setStrategy(MergeStrategy.OURS).call();
+            git.push().setCredentialsProvider(credentialsProvider).setPushAll().call();
+        } catch (GitAPIException | IOException e) {
+            throw new VcsIntegrationException("Failed to share project", e);
+        }
+    }
+
+    private Git initLocalRepository(WsdlProject project, String repositoryPath) throws GitAPIException, IOException {
+        Git git = Git.init().setDirectory(new File(project.getPath())).call();
+
+        StoredConfig config = git.getRepository().getConfig();
+        config.setString("remote", "origin", "url", repositoryPath);
+        config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
+        config.save();
+
+        return git;
     }
 
 }
