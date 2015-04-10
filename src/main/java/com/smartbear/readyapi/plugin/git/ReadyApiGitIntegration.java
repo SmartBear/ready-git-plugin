@@ -20,6 +20,7 @@ import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.PushResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +84,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         } catch (GitAPIException e) {
             e.printStackTrace();
         }
+        git.getRepository().close();
 
         return updates;
     }
@@ -144,8 +146,49 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public CommitResult commit(Collection<VcsUpdate> vcsUpdates, String s) {
-        return null;
+    public CommitResult commit(Collection<VcsUpdate> vcsUpdates, String commitMessage) {
+        VcsUpdate update = null;
+
+        if (vcsUpdates.isEmpty()) {
+            return new CommitResult(CommitResult.CommitStatus.FAILED, "Nothing to commit");
+        } else {
+            update = vcsUpdates.iterator().next();
+        }
+
+        final WsdlProject project = update.getProject();
+        final Git git = getGitObject(project);
+
+        /*for (VcsUpdate vcsUpdate : vcsUpdates) {
+
+            if (!vcsUpdate.getProject().equals(project)) {
+                throw new IllegalArgumentException("There are updates from different projects: " + project.getName() +
+                        ",  " + vcsUpdate.getProject().getName());
+            }
+        }*/
+        final Iterable<PushResult> pushResults = commitUpdates(vcsUpdates, commitMessage, git);
+
+        return new CommitResult(CommitResult.CommitStatus.SUCCESSFUL,"");
+    }
+
+    private Iterable<PushResult> commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, Git git) {
+        for (VcsUpdate vcsUpdate : vcsUpdates) {
+            try {
+                git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
+
+            } catch (GitAPIException e) {
+                throw new VcsIntegrationException(e.getMessage(), e.getCause());
+            }
+        }
+
+        try {
+            git.commit().setMessage(commitMessage).call();
+            //FIXME: Should be a dry run and if there is any conflict it should ask user whether to go ahead or not
+            final Iterable<PushResult> results = git.push().call();
+            git.getRepository().close();
+            return results;
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
     }
 
 
@@ -157,7 +200,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
-        Git git = getGitObject(project);
+        final Git git = getGitObject(project);
 
         try {
             git.fetch().call(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
