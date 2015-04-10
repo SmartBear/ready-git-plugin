@@ -40,6 +40,7 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@Ignore("Depends on external Github repos")
 public class ReadyApiGitIntegrationTest {
 
     private final String remoteUrl = "git@github.com:SmartBear/git-plugin-test-repo.git";
@@ -65,14 +66,12 @@ public class ReadyApiGitIntegrationTest {
         git.getRepository().close();
     }
 
-    @Ignore("Depends on external Github repos")
     @Test
     public void testListAvailableTags() throws Exception {
         final Set<String> availableTags = gitIntegration.getAvailableTags(dummyProject);
         assertThat(availableTags.size(), greaterThanOrEqualTo(1));
     }
 
-    @Ignore("Depends on external Github repos")
     @Test
     public void testCreateTag() throws Exception {
         final int numberOfTags = git.tagList().call().size();
@@ -80,7 +79,6 @@ public class ReadyApiGitIntegrationTest {
         assertThat(git.tagList().call().size(), greaterThan(numberOfTags));
     }
 
-    @Ignore("Depends on external Github repos")
     @Test(expected=IllegalStateException.class)
     public void throwsIllegalStateExceptionForInvalidRepo() throws IOException {
         File gitConfig = new File(localPath + "/.git");
@@ -88,15 +86,11 @@ public class ReadyApiGitIntegrationTest {
         gitIntegration.getAvailableTags(dummyProject);
     }
 
-    @Ignore("Depends on external Github repos")
     @Test
     public void getUpdates() throws Exception {
         int added=0, modified=0, deleted=0;
         int expectedAdds=1, expectedModifications=1, expectedDeletions=1;
-        File changes = new File(localPath + "/newfile");
-        changes.createNewFile();
-        updateFile();
-        deleteFile();
+        makeChangesToLocalRepo();
         final Collection<VcsUpdate> updates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
 
         for(VcsUpdate update: updates){
@@ -113,6 +107,13 @@ public class ReadyApiGitIntegrationTest {
         assertThat(added, is(expectedAdds));
         assertThat(modified, is(expectedModifications));
         assertThat(deleted, is(expectedDeletions));
+    }
+
+    private void makeChangesToLocalRepo() throws IOException {
+        File changes = new File(localPath + "/newfile");
+        changes.createNewFile();
+        updateFile();
+        deleteFile();
     }
 
     private void updateFile() throws IOException {
