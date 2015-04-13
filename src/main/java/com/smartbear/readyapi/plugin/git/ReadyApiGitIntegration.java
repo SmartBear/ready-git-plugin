@@ -26,6 +26,9 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -60,7 +63,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public RepositorySelectionGui buildRepositorySelectionGui(WsdlProject project) {
-        return new GitRepositorySelectionGui(project);
+        return new GitRepositorySelectionGui(project, this);
     }
 
     @Override
@@ -330,6 +333,30 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             tagSet.add(ref.getName());
         }
         return tagSet;
+    }
+
+
+    public void shareProject(WsdlProject project, String repositoryPath, String commitMessage, CredentialsProvider credentialsProvider) {
+        try {
+            Git git = initLocalRepository(project, repositoryPath);
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage(commitMessage).call();
+            git.pull().setCredentialsProvider(credentialsProvider).setStrategy(MergeStrategy.OURS).call();
+            git.push().setCredentialsProvider(credentialsProvider).setPushAll().call();
+        } catch (GitAPIException | IOException e) {
+            throw new VcsIntegrationException("Failed to share project", e);
+        }
+    }
+
+    private Git initLocalRepository(WsdlProject project, String repositoryPath) throws GitAPIException, IOException {
+        Git git = Git.init().setDirectory(new File(project.getPath())).call();
+
+        StoredConfig config = git.getRepository().getConfig();
+        config.setString("remote", "origin", "url", repositoryPath);
+        config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
+        config.save();
+
+        return git;
     }
 
 }
