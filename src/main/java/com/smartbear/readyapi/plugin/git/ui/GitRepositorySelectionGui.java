@@ -82,7 +82,7 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
 
     @Override
     public void createRemoteRepository() {
-        gitIntegration.shareProject(project, selected.getRepositoryPath(), selected.getCommitMessage(), selected.getCredentialsProvider());
+        gitIntegration.shareProject(project, selected.getRepositoryPath(), selected.getCredentialsProvider());
     }
 
 

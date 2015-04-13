@@ -8,16 +8,12 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.Component;
-import java.awt.Dimension;
 
 public class HttpsRepositoryForm implements RepositoryForm {
 
     private JTextField repositoryUrlField;
-    private JTextArea commitMessageField;
 
     private JTextField usernameField;
     private JTextField passwordField;
@@ -25,11 +21,6 @@ public class HttpsRepositoryForm implements RepositoryForm {
     @Override
     public String getRepositoryPath() {
         return repositoryUrlField.getText();
-    }
-
-    @Override
-    public String getCommitMessage() {
-        return commitMessageField.getText();
     }
 
     @Override
@@ -51,20 +42,11 @@ public class HttpsRepositoryForm implements RepositoryForm {
         httpsCard.add(new JLabel("Password:"));
         passwordField = new JPasswordField();
         httpsCard.add(passwordField);
-        httpsCard.add(new JLabel("Commit Message: "));
-        httpsCard.add(createCommitMessageField());
         return httpsCard;
     }
 
     @Override
     public boolean isValid() {
         return StringUtils.hasContent(getRepositoryPath());
-    }
-
-    private JScrollPane createCommitMessageField() {
-        commitMessageField = new JTextArea();
-        JScrollPane scrollPane = new JScrollPane(commitMessageField);
-        scrollPane.setPreferredSize(new Dimension(100, 100));
-        return scrollPane;
     }
 }

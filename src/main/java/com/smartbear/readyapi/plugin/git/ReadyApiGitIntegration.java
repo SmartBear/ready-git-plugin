@@ -25,9 +25,9 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -335,13 +335,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
 
-    public void shareProject(WsdlProject project, String repositoryPath, String commitMessage, CredentialsProvider credentialsProvider) {
+    public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
         try {
-            Git git = initLocalRepository(project, repositoryPath);
-            git.add().addFilepattern(".").call();
-            git.commit().setMessage(commitMessage).call();
-            git.pull().setCredentialsProvider(credentialsProvider).setStrategy(MergeStrategy.OURS).call();
-            git.push().setCredentialsProvider(credentialsProvider).setPushAll().call();
+            initLocalRepository(project, repositoryPath);
+            GitCredentialProviderCache.addCredentialProvider(credentialsProvider, repositoryPath);
         } catch (GitAPIException | IOException e) {
             throw new VcsIntegrationException("Failed to share project", e);
         }

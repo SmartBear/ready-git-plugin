@@ -7,8 +7,6 @@ import java.awt.Component;
 public interface RepositoryForm {
     String getRepositoryPath();
 
-    String getCommitMessage();
-
     CredentialsProvider getCredentialsProvider();
 
     Component getComponent();
