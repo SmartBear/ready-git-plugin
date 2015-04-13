@@ -2,16 +2,14 @@ package com.smartbear.readyapi.plugin.git.ui;
 
 import org.eclipse.jgit.transport.CredentialsProvider;
 
-import java.awt.Component;
+import javax.swing.JPanel;
 
 public interface RepositoryForm {
     String getRepositoryPath();
 
-    String getCommitMessage();
-
     CredentialsProvider getCredentialsProvider();
 
-    Component getComponent();
+    JPanel getComponent();
 
     boolean isValid();
 }

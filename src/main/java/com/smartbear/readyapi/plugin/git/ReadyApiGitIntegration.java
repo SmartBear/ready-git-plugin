@@ -15,8 +15,11 @@ import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitAuthenticationDialog;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
+import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.Status;
+import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.diff.DiffEntry;
@@ -25,6 +28,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.CredentialsProvider;
@@ -56,7 +60,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
     public static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     public static final String HEAD_TREE = "HEAD^{tree}";
-
+    
 
     @Override
     public ActivationStatus activateFor(WsdlProject project) {
@@ -89,7 +93,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = getGitObject(projectFile.getPath());
 
-            git.fetch().setCredentialsProvider(createCredentialProvider(git)).call();
+            FetchCommand fetchCommand = git.fetch();
+
+            setCredentialsProvider(fetchCommand, git);
+            fetchCommand.call();
             Repository repo = git.getRepository();
             ObjectReader reader = repo.newObjectReader();
 
@@ -115,16 +122,24 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return localRepoTreeParser;
     }
 
-    private CredentialsProvider createCredentialProvider(Git git) {
+    private void setCredentialsProvider(TransportCommand transportCommand, Git git) {
         String remoteRepoURL = getRemoteRepoURL(git);
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider == null) {
-            GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
-            UISupport.centerDialog(authenticationDialog);
-            authenticationDialog.setVisible(true);
-
-            credentialsProvider = new UsernamePasswordCredentialsProvider(authenticationDialog.getUsername(), authenticationDialog.getPassword());
+            credentialsProvider = askForCredentials(remoteRepoURL);
         }
+
+        if (credentialsProvider != null) {
+            transportCommand.setCredentialsProvider(credentialsProvider);
+        }
+    }
+
+    private CredentialsProvider askForCredentials(String remoteRepoURL) {
+        CredentialsProvider credentialsProvider;GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
+        UISupport.centerDialog(authenticationDialog);
+        authenticationDialog.setVisible(true);
+
+        credentialsProvider = authenticationDialog.getCredentialsProvider();
         GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
         return credentialsProvider;
     }
@@ -210,7 +225,9 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void updateFromRemoteRepository(File projectFile, boolean b) {
         try {
             final Git git = getGitObject(projectFile.getPath());
-            git.pull().setCredentialsProvider(createCredentialProvider(git)).call();
+            PullCommand pullCommand = git.pull();
+            setCredentialsProvider(pullCommand, git);
+            pullCommand.call();
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -259,6 +276,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             if (!isSuccessFulPush(dryRunResult)) {
                 return false;
             }
+        }*/
+        final Iterable<PushResult> pushResults = commitUpdates(vcsUpdates, commitMessage, git);
 
             Iterable<PushResult> results = git.push().call();
             return isSuccessFulPush(results);
@@ -359,13 +378,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
 
-    public void shareProject(WsdlProject project, String repositoryPath, String commitMessage, CredentialsProvider credentialsProvider) {
+    public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
         try {
-            Git git = initLocalRepository(project, repositoryPath);
-            git.add().addFilepattern(".").call();
-            git.commit().setMessage(commitMessage).call();
-            git.pull().setCredentialsProvider(credentialsProvider).setStrategy(MergeStrategy.OURS).call();
-            git.push().setCredentialsProvider(credentialsProvider).setPushAll().call();
+            initLocalRepository(project, repositoryPath);
+            GitCredentialProviderCache.addCredentialProvider(credentialsProvider, repositoryPath);
         } catch (GitAPIException | IOException e) {
             throw new VcsIntegrationException("Failed to share project", e);
         }

@@ -10,11 +10,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -22,19 +18,24 @@ import java.io.File;
 public class SshRepositoryForm implements RepositoryForm {
 
     private JTextField repositoryUrlField;
-    private JTextArea commitMessageField;
 
     private JTextField passphraseField;
     private JTextField sshKeyPathField;
+    private String repoUrl;
+    private boolean repoUrlReadOnly;
+
+    public SshRepositoryForm() {
+        this("", false);
+    }
+
+    public SshRepositoryForm(String repoUrl, boolean repoUrlReadOnly) {
+        this.repoUrl = repoUrl;
+        this.repoUrlReadOnly = repoUrlReadOnly;
+    }
 
     @Override
     public String getRepositoryPath() {
         return repositoryUrlField.getText();
-    }
-
-    @Override
-    public String getCommitMessage() {
-        return commitMessageField.getText();
     }
 
     @Override
@@ -43,11 +44,12 @@ public class SshRepositoryForm implements RepositoryForm {
     }
 
     @Override
-    public Component getComponent() {
+    public JPanel getComponent() {
         JPanel sshCard = new JPanel(new MigLayout("wrap 3", "0[shrink][grow,fill][shrink]0", "0[]8[]0"));
 
         sshCard.add(new JLabel("Repository URL:"));
-        repositoryUrlField = new JTextField();
+        repositoryUrlField = new JTextField(repoUrl);
+        repositoryUrlField.setEditable(!repoUrlReadOnly);
         sshCard.add(repositoryUrlField, "spanx");
 
         sshCard.add(new JLabel("SSH key path:"));
@@ -59,9 +61,6 @@ public class SshRepositoryForm implements RepositoryForm {
         sshCard.add(new JLabel("Passphrase:"));
         passphraseField = new JPasswordField();
         sshCard.add(passphraseField, "spanx");
-
-        sshCard.add(new JLabel("Commit Message: "), "t");
-        sshCard.add(createCommitMessageField(), "spanx");
 
         return sshCard;
     }
@@ -90,12 +89,5 @@ public class SshRepositoryForm implements RepositoryForm {
         fileChooser.setDialogType(JFileChooser.OPEN_DIALOG);
         fileChooser.setFileHidingEnabled(false);
         return fileChooser;
-    }
-
-    private JScrollPane createCommitMessageField() {
-        commitMessageField = new JTextArea();
-        JScrollPane scrollPane = new JScrollPane(commitMessageField);
-        scrollPane.setPreferredSize(new Dimension(100, 100));
-        return scrollPane;
     }
 }
