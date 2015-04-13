@@ -11,7 +11,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
-import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -22,6 +21,17 @@ public class SshRepositoryForm implements RepositoryForm {
 
     private JTextField passphraseField;
     private JTextField sshKeyPathField;
+    private String repoUrl;
+    private boolean repoUrlReadOnly;
+
+    public SshRepositoryForm() {
+        this("", false);
+    }
+
+    public SshRepositoryForm(String repoUrl, boolean repoUrlReadOnly) {
+        this.repoUrl = repoUrl;
+        this.repoUrlReadOnly = repoUrlReadOnly;
+    }
 
     @Override
     public String getRepositoryPath() {
@@ -34,11 +44,12 @@ public class SshRepositoryForm implements RepositoryForm {
     }
 
     @Override
-    public Component getComponent() {
+    public JPanel getComponent() {
         JPanel sshCard = new JPanel(new MigLayout("wrap 3", "0[shrink][grow,fill][shrink]0", "0[]8[]0"));
 
         sshCard.add(new JLabel("Repository URL:"));
-        repositoryUrlField = new JTextField();
+        repositoryUrlField = new JTextField(repoUrl);
+        repositoryUrlField.setEditable(!repoUrlReadOnly);
         sshCard.add(repositoryUrlField, "spanx");
 
         sshCard.add(new JLabel("SSH key path:"));

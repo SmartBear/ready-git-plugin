@@ -45,8 +45,6 @@ public class GitRepositorySelectionGui implements RepositorySelectionGui {
         panel.add(createRadioButton(LABEL_SSH, group));
         panel.add(createRadioButton(LABEL_HTTPS, group));
 
-        sshRepositoryForm = new SshRepositoryForm();
-
         cards.add(sshRepositoryForm.getComponent(), LABEL_SSH);
         cards.add(httpsRepositoryForm.getComponent(), LABEL_HTTPS);
 

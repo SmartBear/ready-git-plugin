@@ -9,7 +9,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
-import java.awt.Component;
 
 public class HttpsRepositoryForm implements RepositoryForm {
 
@@ -17,6 +16,17 @@ public class HttpsRepositoryForm implements RepositoryForm {
 
     private JTextField usernameField;
     private JTextField passwordField;
+    private String repoUrl;
+    private boolean repoUrlReadOnly;
+
+    public HttpsRepositoryForm() {
+        this("", false);
+    }
+
+    public HttpsRepositoryForm(String repoUrl, boolean repoUrlReadOnly) {
+        this.repoUrl = repoUrl;
+        this.repoUrlReadOnly = repoUrlReadOnly;
+    }
 
     @Override
     public String getRepositoryPath() {
@@ -29,11 +39,12 @@ public class HttpsRepositoryForm implements RepositoryForm {
     }
 
     @Override
-    public Component getComponent() {
+    public JPanel getComponent() {
         JPanel httpsCard = new JPanel(new MigLayout("wrap 2", "0[shrink][grow,fill]0", "0[]8[]0"));
 
         httpsCard.add(new JLabel("Repository URL:"));
-        repositoryUrlField = new JTextField();
+        repositoryUrlField = new JTextField(repoUrl);
+        repositoryUrlField.setEditable(!repoUrlReadOnly);
         httpsCard.add(repositoryUrlField, "spanx");
         httpsCard.add(new JLabel("Username:"));
         usernameField = new JTextField();

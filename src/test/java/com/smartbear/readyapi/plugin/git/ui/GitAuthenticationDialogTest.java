@@ -12,8 +12,6 @@ public class GitAuthenticationDialogTest extends SwingTest {
     public void showDialog() throws InvocationTargetException, InterruptedException {
         GitAuthenticationDialog dialog = new GitAuthenticationDialog("https://google.com");
         embedInFrameAndShow(dialog.getContentPane());
-        System.out.println(dialog.getPassword());
-        System.out.println(dialog.getUsername());
     }
 
 }

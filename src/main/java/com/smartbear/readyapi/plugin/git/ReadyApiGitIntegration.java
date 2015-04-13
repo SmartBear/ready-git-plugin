@@ -15,8 +15,11 @@ import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitAuthenticationDialog;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
+import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.Status;
+import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.diff.DiffEntry;
@@ -28,7 +31,6 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +86,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = getGitObject(projectFile.getPath());
 
-            git.fetch().setCredentialsProvider(createCredentialsProvider(git)).call();
+            FetchCommand fetchCommand = git.fetch();
+
+            setCredentialsProvider(fetchCommand, git);
+            fetchCommand.call();
             Repository repo = git.getRepository();
             ObjectReader reader = repo.newObjectReader();
 
@@ -110,17 +115,25 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return localRepoTreeParser;
     }
 
-    private CredentialsProvider createCredentialsProvider(Git git) {
+    private void setCredentialsProvider(TransportCommand transportCommand, Git git) {
         String remoteRepoURL = getRemoteRepoURL(git);
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider == null) {
-            GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
-            UISupport.centerDialog(authenticationDialog);
-            authenticationDialog.setVisible(true);
-
-            credentialsProvider = new UsernamePasswordCredentialsProvider(authenticationDialog.getUsername(), authenticationDialog.getPassword());
-            GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
+            credentialsProvider = askForCredentials(remoteRepoURL);
         }
+
+        if (credentialsProvider != null) {
+            transportCommand.setCredentialsProvider(credentialsProvider);
+        }
+    }
+
+    private CredentialsProvider askForCredentials(String remoteRepoURL) {
+        CredentialsProvider credentialsProvider;GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
+        UISupport.centerDialog(authenticationDialog);
+        authenticationDialog.setVisible(true);
+
+        credentialsProvider = authenticationDialog.getCredentialsProvider();
+        GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
         return credentialsProvider;
     }
 
@@ -205,7 +218,9 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void updateFromRemoteRepository(File projectFile, boolean b) {
         try {
             final Git git = getGitObject(projectFile.getPath());
-            git.pull().setCredentialsProvider(createCredentialsProvider(git)).call();
+            PullCommand pullCommand = git.pull();
+            setCredentialsProvider(pullCommand, git);
+            pullCommand.call();
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
