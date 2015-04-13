@@ -12,15 +12,23 @@ import com.eviware.soapui.plugins.vcs.VcsIntegration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationConfiguration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
+import com.eviware.soapui.support.UISupport;
+import com.smartbear.readyapi.plugin.git.ui.GitAuthenticationDialog;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
+import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +49,8 @@ import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.MODIFIED;
 public class ReadyApiGitIntegration implements VcsIntegration {
 
     private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
+    public static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
+    public static final String HEAD_TREE = "HEAD^{tree}";
 
 
     @Override
@@ -69,13 +79,74 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public Collection<VcsUpdate> getRemoteRepositoryUpdates(WsdlProject project) {
-        return null;
+    public Collection<VcsUpdate> getRemoteRepositoryUpdates(File projectFile) {
+        Collection<VcsUpdate> updates = new ArrayList<>();
+        try {
+            final Git git = getGitObject(projectFile.getPath());
+
+            git.fetch().setCredentialsProvider(createCredentialProvider(git)).call();
+            Repository repo = git.getRepository();
+            ObjectReader reader = repo.newObjectReader();
+
+            List<DiffEntry> diffs = git.diff().setShowNameAndStatusOnly(true)
+                    .setNewTree(createTreeParser(repo, reader, FETCH_HEAD_TREE))
+                    .setOldTree(createTreeParser(repo, reader, HEAD_TREE))
+                    .call();
+
+            for (DiffEntry entry : diffs) {
+                updates.add(new VcsUpdate(null, convertToVcsUpdateType(entry.getChangeType()), entry.getNewPath(), entry.getOldPath()));
+            }
+        } catch (GitAPIException | IOException e) {
+            e.printStackTrace();
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+        return updates;
+    }
+
+    private CanonicalTreeParser createTreeParser(Repository repo, ObjectReader reader, String treeName) throws IOException {
+        ObjectId head = repo.resolve(treeName);
+        CanonicalTreeParser localRepoTreeParser = new CanonicalTreeParser();
+        localRepoTreeParser.reset(reader, head);
+        return localRepoTreeParser;
+    }
+
+    private CredentialsProvider createCredentialProvider(Git git) {
+        String remoteRepoURL = getRemoteRepoURL(git);
+        CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
+        if (credentialsProvider == null) {
+            GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
+            UISupport.centerDialog(authenticationDialog);
+            authenticationDialog.setVisible(true);
+
+            credentialsProvider = new UsernamePasswordCredentialsProvider(authenticationDialog.getUsername(), authenticationDialog.getPassword());
+        }
+        GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
+        return credentialsProvider;
+    }
+
+    private String getRemoteRepoURL(Git git) {
+        return git.getRepository().getConfig().getString("remote", "origin", "url");
+    }
+
+    private VcsUpdate.VcsUpdateType convertToVcsUpdateType(DiffEntry.ChangeType changeType) {
+        switch (changeType) {
+            case ADD:
+                return VcsUpdate.VcsUpdateType.ADDED;
+            case DELETE:
+                return VcsUpdate.VcsUpdateType.DELETED;
+            case COPY:
+            case RENAME:
+                return VcsUpdate.VcsUpdateType.MOVED;
+            case MODIFY:
+                return VcsUpdate.VcsUpdateType.MODIFIED;
+            default:
+                return null;
+        }
     }
 
     @Override
     public Collection<VcsUpdate> getLocalRepositoryUpdates(WsdlProject project) {
-        final Git git = getGitObject(project);
+        final Git git = getGitObject(project.getPath());
         Collection<VcsUpdate> updates = new ArrayList<>();
 
         try {
@@ -90,35 +161,35 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) {
-        for(String fileAdded: status.getAdded()){
+        for (String fileAdded : status.getAdded()) {
             updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
         }
 
-        for(String fileChanged: status.getChanged()){
+        for (String fileChanged : status.getChanged()) {
             updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getRemoved()){
+        for (String fileChanged : status.getRemoved()) {
             updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getMissing()){
+        for (String fileChanged : status.getMissing()) {
             updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getModified()){
+        for (String fileChanged : status.getModified()) {
             updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getUntracked()){
+        for (String fileChanged : status.getUntracked()) {
             updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getUntrackedFolders()){
+        for (String fileChanged : status.getUntrackedFolders()) {
             updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
         }
 
-        for(String fileChanged: status.getConflicting()){
+        for (String fileChanged : status.getConflicting()) {
             final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
             update.setConflictingUpdate(true);
             updates.add(update);
@@ -131,8 +202,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public void updateFromRemoteRepository(WsdlProject project, boolean b) {
-
+    public void updateFromRemoteRepository(File projectFile, boolean b) {
+        try {
+            final Git git = getGitObject(projectFile.getPath());
+            git.pull().setCredentialsProvider(createCredentialProvider(git)).call();
+        } catch (GitAPIException e) {
+            e.printStackTrace();
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
     }
 
     @Override
@@ -156,7 +233,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }
 
         final WsdlProject project = update.getProject();
-        final Git git = getGitObject(project);
+        final Git git = getGitObject(project.getPath());
 
         /*for (VcsUpdate vcsUpdate : vcsUpdates) {
 
@@ -167,7 +244,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }*/
         final Iterable<PushResult> pushResults = commitUpdates(vcsUpdates, commitMessage, git);
 
-        return new CommitResult(CommitResult.CommitStatus.SUCCESSFUL,"");
+        return new CommitResult(CommitResult.CommitStatus.SUCCESSFUL, "");
     }
 
     private Iterable<PushResult> commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, Git git) {
@@ -200,7 +277,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
-        final Git git = getGitObject(project);
+        Git git = getGitObject(project.getPath());
 
         try {
             git.fetch().call(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
@@ -215,7 +292,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public void createTag(WsdlProject project, String tagName) {
-        Git git = getGitObject(project);
+        Git git = getGitObject(project.getPath());
         try {
             git.tag().setName(tagName).call();
             git.push().setPushTags().call();
@@ -232,13 +309,12 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return null;
     }
 
-    private Git getGitObject(WsdlProject project) {
-        final String localPath = project.getPath();
+    private Git getGitObject(final String localPath) {
         final Repository localRepo;
 
         try {
             localRepo = new FileRepository(localPath + "/.git");
-            if(!localRepo.getObjectDatabase().exists()){
+            if (!localRepo.getObjectDatabase().exists()) {
                 logger.error("No git repo exist in: " + localPath);
                 throw new IllegalStateException("No git repo exist in: " + localPath);
             }
@@ -249,7 +325,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     private Set<String> getTagSetFromRefList(List<Ref> refList) {
-        Set<String> tagSet = new HashSet<String>();
+        Set<String> tagSet = new HashSet<>();
         for (Ref ref : refList) {
             tagSet.add(ref.getName());
         }
