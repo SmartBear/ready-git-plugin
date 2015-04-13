@@ -7,13 +7,13 @@ import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Label;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -30,41 +30,51 @@ public class GitAuthenticationDialog extends JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         setResizable(false);
         setBackground(Color.WHITE);
-        setSize(new Dimension(400, 200));
 
-        JPanel panel = new JPanel(new MigLayout("wrap", "0[grow, fill]0[grow, fill]0", "0[grow, fill]0"));
-        panel.add(new Label("Repository:"));
-        panel.add(new Label(repoUrl));
+        JPanel panel = new JPanel(new MigLayout("wrap", "8[shrink]8[grow, fill]8", "8[]8"));
+        panel.add(new JLabel("Repository:"));
+        panel.add(new JLabel(repoUrl));
 
-        panel.add(new Label("Username"));
+        panel.add(new JLabel("Username:"));
         userNameField = new JTextField();
         panel.add(userNameField);
 
-        panel.add(new Label("Password:"));
+        panel.add(new JLabel("Password:"));
         passwordField = new JPasswordField();
         panel.add(passwordField);
 
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         final JButton authenticateButton = new JButton(new AuthenticateAction());
-        panel.add(authenticateButton, "wrap");
+        buttonPanel.add(authenticateButton);
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dispose();
+            }
+        });
+        buttonPanel.add(cancelButton);
+        panel.add(buttonPanel, "growx,spanx");
 
         setContentPane(panel);
+        pack();
     }
 
     public String getPassword() {
         return passwordField.getText();
     }
 
-    public ActionListener escapeActionListener() {
+    public String getUsername() {
+        return userNameField.getText();
+    }
+
+    private ActionListener escapeActionListener() {
         return new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setVisible(false);
+                dispose();
             }
         };
-    }
-
-    public String getUsername() {
-        return userNameField.getText();
     }
 
     private class AuthenticateAction extends AbstractAction {
@@ -74,12 +84,7 @@ public class GitAuthenticationDialog extends JDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            GitAuthenticationDialog.this.setVisible(false);
+            dispose();
         }
-    }
-
-    public static void main(String[] args) {
-        GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog("git@github.com:SmartBear/git-plugin-test-repo.git");
-        authenticationDialog.setVisible(true);
     }
 }
