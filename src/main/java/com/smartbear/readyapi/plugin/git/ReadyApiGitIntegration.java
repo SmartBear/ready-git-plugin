@@ -28,13 +28,10 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.lib.StoredConfig;
-import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -276,8 +273,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             if (!isSuccessFulPush(dryRunResult)) {
                 return false;
             }
-        }*/
-        final Iterable<PushResult> pushResults = commitUpdates(vcsUpdates, commitMessage, git);
 
             Iterable<PushResult> results = git.push().call();
             return isSuccessFulPush(results);
