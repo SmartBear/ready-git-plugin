@@ -26,7 +26,6 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
-import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
@@ -50,10 +49,9 @@ import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.MODIFIED;
 @VcsIntegrationConfiguration(name = "Git", description = "Git Version Control System")
 public class ReadyApiGitIntegration implements VcsIntegration {
 
-    private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
     public static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     public static final String HEAD_TREE = "HEAD^{tree}";
-
+    private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
 
     @Override
     public ActivationStatus activateFor(WsdlProject project) {
