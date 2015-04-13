@@ -25,11 +25,11 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
+import org.eclipse.jgit.transport.RemoteRefUpdate;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.slf4j.Logger;
@@ -44,6 +44,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.eviware.soapui.plugins.vcs.CommitResult.CommitStatus.FAILED;
+import static com.eviware.soapui.plugins.vcs.CommitResult.CommitStatus.SUCCESSFUL;
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.ADDED;
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.DELETED;
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.MODIFIED;
@@ -227,7 +229,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public CommitResult commit(Collection<VcsUpdate> vcsUpdates, String commitMessage) {
-        VcsUpdate update = null;
+        VcsUpdate update;
 
         if (vcsUpdates.isEmpty()) {
             return new CommitResult(CommitResult.CommitStatus.FAILED, "Nothing to commit");
@@ -238,19 +240,51 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         final WsdlProject project = update.getProject();
         final Git git = getGitObject(project.getPath());
 
-        /*for (VcsUpdate vcsUpdate : vcsUpdates) {
+        final boolean successfulUpdate = commitUpdates(vcsUpdates, commitMessage, git);
 
-            if (!vcsUpdate.getProject().equals(project)) {
-                throw new IllegalArgumentException("There are updates from different projects: " + project.getName() +
-                        ",  " + vcsUpdate.getProject().getName());
-            }
-        }*/
-        final Iterable<PushResult> pushResults = commitUpdates(vcsUpdates, commitMessage, git);
+        CommitResult result = successfulUpdate? new CommitResult(SUCCESSFUL, "Commit was successful") :
+                new CommitResult(FAILED, "Commit Failed");
 
-        return new CommitResult(CommitResult.CommitStatus.SUCCESSFUL, "");
+        git.getRepository().close();
+
+        return result;
     }
 
-    private Iterable<PushResult> commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, Git git) {
+    private boolean commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, Git git) {
+        addFilesToIndex(vcsUpdates, git);
+        try {
+            git.commit().setMessage(commitMessage).call();
+            Iterable<PushResult> dryRunResult = git.push().setDryRun(true).call();
+
+            if (!isSuccessFulPush(dryRunResult)) {
+                return false;
+            }
+
+            Iterable<PushResult> results = git.push().call();
+            return isSuccessFulPush(results);
+
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+    }
+
+    private boolean isSuccessFulPush(Iterable<PushResult> resultIterable) {
+        boolean isPushSuccessful = true;
+        PushResult pushResult = resultIterable.iterator().next();
+
+        for (final RemoteRefUpdate refUpdate : pushResult.getRemoteUpdates()) {
+            final RemoteRefUpdate.Status status = refUpdate.getStatus();
+            if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
+                isPushSuccessful = false;
+                logger.warn("Push to one of the remote "+ refUpdate.getSrcRef() +" was not successful: " + status);
+                break;
+            }
+        }
+
+        return isPushSuccessful;
+    }
+
+    private void addFilesToIndex(Collection<VcsUpdate> vcsUpdates, Git git) {
         for (VcsUpdate vcsUpdate : vcsUpdates) {
             try {
                 git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
@@ -259,18 +293,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 throw new VcsIntegrationException(e.getMessage(), e.getCause());
             }
         }
-
-        try {
-            git.commit().setMessage(commitMessage).call();
-            //FIXME: Should be a dry run and if there is any conflict it should ask user whether to go ahead or not
-            final Iterable<PushResult> results = git.push().call();
-            git.getRepository().close();
-            return results;
-        } catch (GitAPIException e) {
-            throw new VcsIntegrationException(e.getMessage(), e.getCause());
-        }
     }
-
 
     @Override
     public void revert(Collection<VcsUpdate> vcsUpdates) throws VcsIntegrationException {

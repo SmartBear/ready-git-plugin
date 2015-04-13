@@ -16,6 +16,7 @@
 package com.smartbear.readyapi.plugin.git;
 
 import com.eviware.soapui.impl.wsdl.WsdlProjectPro;
+import com.eviware.soapui.plugins.vcs.CommitResult;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.smartbear.ready.util.ReadyTools;
 import org.apache.commons.io.FileUtils;
@@ -43,7 +44,6 @@ import static org.mockito.Mockito.when;
 @Ignore("Depends on external Github repos")
 public class ReadyApiGitIntegrationTest {
 
-    private final String remoteUrl = "git@github.com:SmartBear/git-plugin-test-repo.git";
     private File localPath;
     private Git git;
     @Mock
@@ -55,6 +55,7 @@ public class ReadyApiGitIntegrationTest {
         gitIntegration = new ReadyApiGitIntegration();
         localPath = File.createTempFile("TestGitPlugin", "");
         localPath.delete();
+        String remoteUrl = "git@github.com:SmartBear/git-plugin-test-repo.git";
         git = Git.cloneRepository().setURI(remoteUrl).setDirectory(localPath).call();
         dummyProject = mock(WsdlProjectPro.class);
         when(dummyProject.getPath()).thenReturn(localPath.getAbsolutePath());
@@ -109,6 +110,14 @@ public class ReadyApiGitIntegrationTest {
         assertThat(deleted, is(expectedDeletions));
     }
 
+    @Test
+    public void testCommit() throws Exception {
+        makeChangesToLocalRepo();
+        final Collection<VcsUpdate> updates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
+        final CommitResult commitResult = gitIntegration.commit(updates, "commit message");
+        assertThat(commitResult.getCommitStatus(), is(CommitResult.CommitStatus.SUCCESSFUL));
+    }
+
     private void makeChangesToLocalRepo() throws IOException {
         File changes = new File(localPath + "/newfile");
         changes.createNewFile();
@@ -117,7 +126,7 @@ public class ReadyApiGitIntegrationTest {
     }
 
     private void updateFile() throws IOException {
-        String data = " This content will append to the end of the file";
+        String data = " This is a test readme file. ";
         File file = new File(localPath + "/README.md");
         if (!file.exists()) {
             file.createNewFile();
