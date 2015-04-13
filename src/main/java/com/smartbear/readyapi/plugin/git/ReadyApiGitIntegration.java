@@ -269,17 +269,29 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             git.commit().setMessage(commitMessage).call();
             Iterable<PushResult> dryRunResult = git.push().setDryRun(true).call();
+            Iterable<PushResult> results;
 
-            if (!isSuccessFulPush(dryRunResult)) {
-                return false;
-            }
-
-            Iterable<PushResult> results = git.push().call();
-            return isSuccessFulPush(results);
+            return pushCommit(git, isSuccessFulPush(dryRunResult));
 
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
+    }
+
+    private boolean pushCommit(Git git, boolean isDryRunSuccessful) throws GitAPIException {
+        Iterable<PushResult> results;
+
+        if (isDryRunSuccessful) {
+            results = git.push().call();
+        } else {
+            if (UISupport.confirm("Your changes are conflicting, do you still want to commit and override remote changes?", "Override remote changes")) {
+                results = git.push().setForce(true).call();
+            } else {
+                return false;
+            }
+        }
+
+        return isSuccessFulPush(results);
     }
 
     private boolean isSuccessFulPush(Iterable<PushResult> resultIterable) {
