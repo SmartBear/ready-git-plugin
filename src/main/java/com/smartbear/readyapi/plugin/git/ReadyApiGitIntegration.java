@@ -28,7 +28,6 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
-import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -87,7 +86,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = getGitObject(projectFile.getPath());
 
-            git.fetch().setCredentialsProvider(createCredentialProvider(git)).call();
+            git.fetch().setCredentialsProvider(createCredentialsProvider(git)).call();
             Repository repo = git.getRepository();
             ObjectReader reader = repo.newObjectReader();
 
@@ -113,7 +112,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return localRepoTreeParser;
     }
 
-    private CredentialsProvider createCredentialProvider(Git git) {
+    private CredentialsProvider createCredentialsProvider(Git git) {
         String remoteRepoURL = getRemoteRepoURL(git);
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider == null) {
@@ -122,8 +121,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             authenticationDialog.setVisible(true);
 
             credentialsProvider = new UsernamePasswordCredentialsProvider(authenticationDialog.getUsername(), authenticationDialog.getPassword());
+            GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
         }
-        GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
         return credentialsProvider;
     }
 
@@ -208,7 +207,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void updateFromRemoteRepository(File projectFile, boolean b) {
         try {
             final Git git = getGitObject(projectFile.getPath());
-            git.pull().setCredentialsProvider(createCredentialProvider(git)).call();
+            git.pull().setCredentialsProvider(createCredentialsProvider(git)).call();
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
