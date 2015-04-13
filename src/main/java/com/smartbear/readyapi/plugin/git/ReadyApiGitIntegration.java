@@ -15,13 +15,12 @@ import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitAuthenticationDialog;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
-import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
+import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.ObjectId;
@@ -39,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import java.awt.Component;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -90,10 +91,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = getGitObject(projectFile.getPath());
 
-            FetchCommand fetchCommand = git.fetch();
+            CommandRetrier commandRetrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.fetch();
+                }
+            };
+            commandRetrier.execute();
 
-            setCredentialsProvider(fetchCommand, git);
-            fetchCommand.call();
             Repository repo = git.getRepository();
             ObjectReader reader = repo.newObjectReader();
 
@@ -108,6 +113,9 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         } catch (GitAPIException | IOException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        } catch (Throwable e) {
+            e.printStackTrace();
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
         return updates;
     }
@@ -119,20 +127,17 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return localRepoTreeParser;
     }
 
-    private void setCredentialsProvider(TransportCommand transportCommand, Git git) {
+    private void setCredentialsProviderFromCache(TransportCommand transportCommand, Git git) {
         String remoteRepoURL = getRemoteRepoURL(git);
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
-        if (credentialsProvider == null) {
-            credentialsProvider = askForCredentials(remoteRepoURL);
-        }
-
         if (credentialsProvider != null) {
             transportCommand.setCredentialsProvider(credentialsProvider);
         }
     }
 
     private CredentialsProvider askForCredentials(String remoteRepoURL) {
-        CredentialsProvider credentialsProvider;GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
+        CredentialsProvider credentialsProvider;
+        GitAuthenticationDialog authenticationDialog = new GitAuthenticationDialog(remoteRepoURL);
         UISupport.centerDialog(authenticationDialog);
         authenticationDialog.setVisible(true);
 
@@ -222,10 +227,18 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void updateFromRemoteRepository(File projectFile, boolean b) {
         try {
             final Git git = getGitObject(projectFile.getPath());
-            PullCommand pullCommand = git.pull();
-            setCredentialsProvider(pullCommand, git);
-            pullCommand.call();
+
+            CommandRetrier commandRetrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.pull();
+                }
+            };
+            commandRetrier.execute();
         } catch (GitAPIException e) {
+            e.printStackTrace();
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        } catch (Throwable e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
@@ -405,4 +418,58 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return git;
     }
 
+    abstract class CommandRetrier {
+
+        private Git git;
+
+        protected CommandRetrier(Git git) {
+            this.git = git;
+        }
+
+        abstract TransportCommand recreateCommand();
+
+        boolean shouldRetry(Throwable e) {
+            return e instanceof TransportException
+                    && e.getMessage() != null
+                    && (e.getMessage().contains("not authorized") || e.getMessage().contains("no CredentialsProvider has been registered"));
+        }
+
+        public void execute() throws Throwable {
+            TransportCommand fetchCommand = recreateCommand();
+
+            setCredentialsProviderFromCache(fetchCommand, git);
+            try {
+                Method call = getMethodCall(fetchCommand);
+                call.invoke(fetchCommand);
+            } catch (NoSuchMethodException | IllegalAccessException e) {
+                e.printStackTrace();
+                throw new VcsIntegrationException(e.getMessage(), e);
+            } catch (InvocationTargetException e) {
+                if (shouldRetry(e.getCause())) {
+                    CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
+                    if (credentialsProvider != null) {
+                        fetchCommand = recreateCommand();
+                        try {
+                            Method setCredentialsProvider = getMethodSetCredentialsProvider(fetchCommand);
+                            setCredentialsProvider.invoke(fetchCommand, credentialsProvider);
+                            Method call = getMethodCall(fetchCommand);
+                            call.invoke(fetchCommand);
+                        } catch (Exception e1) {
+                            e1.printStackTrace();
+                        }
+                    } else {
+                        throw e.getCause();
+                    }
+                }
+            }
+        }
+
+        private Method getMethodSetCredentialsProvider(Object fetchCommand) throws NoSuchMethodException {
+            return fetchCommand.getClass().getMethod("setCredentialsProvider", new Class[]{CredentialsProvider.class});
+        }
+
+        private Method getMethodCall(Object fetchCommand) throws NoSuchMethodException {
+            return fetchCommand.getClass().getMethod("call", new Class[]{});
+        }
+    }
 }
