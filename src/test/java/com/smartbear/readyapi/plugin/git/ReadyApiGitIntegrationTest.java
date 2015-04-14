@@ -42,6 +42,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -86,7 +87,7 @@ public class ReadyApiGitIntegrationTest {
     @Test
     public void testCreateTag() throws Exception {
         final int numberOfTags = git.tagList().call().size();
-        gitIntegration.createTag(dummyProject, "V0.7");
+        gitIntegration.createTag(dummyProject, "V" + System.currentTimeMillis());
         assertThat(git.tagList().call().size(), greaterThan(numberOfTags));
     }
 
@@ -100,7 +101,7 @@ public class ReadyApiGitIntegrationTest {
     @Test
     public void getUpdates() throws Exception {
         int added=0, modified=0, deleted=0;
-        int expectedAdds=1, expectedModifications=1, expectedDeletions=1;
+        int expectedAdds=1, expectedModifications=1, expectedDeletions=1; //updates should ignore empty directories
         makeChangesToLocalRepo(localPath);
         final Collection<VcsUpdate> updates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
 
@@ -145,6 +146,17 @@ public class ReadyApiGitIntegrationTest {
         assertThat(conflictResult.getCommitStatus(), is(CommitResult.CommitStatus.SUCCESSFUL));
         ReadyTools.deleteDirectoryOnExit(conflictingRepoPath);
 
+    }
+
+    @Test
+    public void testRevert() throws Exception {
+        updateFile(localPath);
+        final Collection<VcsUpdate> updates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
+        assertTrue(updates.size() == 1);
+
+        gitIntegration.revert(updates);
+        final Collection<VcsUpdate> revertedUpdates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
+        assertTrue(revertedUpdates.size() == 0);
     }
 
     private WsdlProjectPro cloneNewRepo(File path) throws Exception {

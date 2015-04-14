@@ -85,7 +85,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public Collection<VcsUpdate> getRemoteRepositoryUpdates(File projectFile) {
         Collection<VcsUpdate> updates = new ArrayList<>();
         try {
-            final Git git = getGitObject(projectFile.getPath());
+            final Git git = createGitObject(projectFile.getPath());
 
             CommandRetrier commandRetrier = new CommandRetrier(git) {
                 @Override
@@ -141,7 +141,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public Collection<VcsUpdate> getLocalRepositoryUpdates(WsdlProject project) {
-        final Git git = getGitObject(project.getPath());
+        final Git git = createGitObject(project.getPath());
         Collection<VcsUpdate> updates = new ArrayList<>();
 
         try {
@@ -202,7 +202,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public void updateFromRemoteRepository(File projectFile, boolean b) {
         try {
-            final Git git = getGitObject(projectFile.getPath());
+            final Git git = createGitObject(projectFile.getPath());
 
             CommandRetrier commandRetrier = new CommandRetrier(git) {
                 @Override
@@ -241,7 +241,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }
 
         final WsdlProject project = update.getProject();
-        final Git git = getGitObject(project.getPath());
+        final Git git = createGitObject(project.getPath());
 
         final boolean successfulUpdate = commitUpdates(vcsUpdates, commitMessage, git);
 
@@ -314,12 +314,31 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public void revert(Collection<VcsUpdate> vcsUpdates) throws VcsIntegrationException {
 
+        VcsUpdate update;
+
+        if (vcsUpdates.isEmpty()) {
+            return ;
+        } else {
+            update = vcsUpdates.iterator().next();
+        }
+
+        final Git gitObject = createGitObject(update.getProject().getPath());
+
+        for(VcsUpdate vcsUpdate: vcsUpdates){
+            try {
+                gitObject.checkout().addPath(vcsUpdate.getRelativePath()).call();
+            } catch (GitAPIException e) {
+                throw new VcsIntegrationException(e.getMessage(), e.getCause());
+            }
+        }
+
+        gitObject.getRepository().close();
     }
 
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
-        Git git = getGitObject(project.getPath());
+        Git git = createGitObject(project.getPath());
 
         try {
             git.fetch().call(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
@@ -334,7 +353,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public void createTag(WsdlProject project, String tagName) {
-        Git git = getGitObject(project.getPath());
+        Git git = createGitObject(project.getPath());
         try {
             git.tag().setName(tagName).call();
             git.push().setPushTags().call();
@@ -351,7 +370,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return null;
     }
 
-    private Git getGitObject(final String localPath) {
+    private Git createGitObject(final String localPath) {
         final Repository localRepo;
 
         try {
