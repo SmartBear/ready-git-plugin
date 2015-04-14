@@ -181,7 +181,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }
 
         for (String fileChanged : status.getUntrackedFolders()) {
-            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+            File untrackedFolder = new File(project.getPath() + "/" + fileChanged);
+            if (untrackedFolder.list().length > 0) {
+                updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+            }
         }
 
         for (String fileChanged : status.getConflicting()) {
@@ -270,7 +273,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         if (isDryRunSuccessful) {
             results = git.push().call();
         } else {
-            if (UISupport.confirm("Your changes are conflicting, do you still want to commit and override remote changes?", "Override remote changes")) {
+            if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
+                    "Overwrite remote changes")) {
                 results = git.push().setForce(true).call();
             } else {
                 return false;

@@ -147,7 +147,7 @@ public class ReadyApiGitIntegrationTest {
 
     }
 
-    public WsdlProjectPro cloneNewRepo(File path) throws Exception {
+    private WsdlProjectPro cloneNewRepo(File path) throws Exception {
         String remoteUrl = "git@github.com:SmartBear/git-plugin-test-repo.git";
         path.delete();
         Git.cloneRepository().setURI(remoteUrl).setDirectory(path).call();
@@ -157,10 +157,20 @@ public class ReadyApiGitIntegrationTest {
     }
 
     private void makeChangesToLocalRepo(File path) throws IOException {
-        File changes = new File(path + "/newfile");
-        changes.createNewFile();
+        addFile(path);
+        addEmptyDir(path);
         updateFile(path);
         deleteFile(path);
+    }
+
+    private void addFile(File path) throws IOException {
+        File changes = new File(path + "/sample.txt");
+        changes.createNewFile();
+    }
+
+    private void addEmptyDir(File path) throws IOException {
+        File emptyDir = new File(path + "/newfile");
+        emptyDir.mkdir();
     }
 
     private void updateFile(File path) throws IOException {
