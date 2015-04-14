@@ -22,12 +22,12 @@ abstract class CommandRetrier {
     abstract TransportCommand recreateCommand();
 
     public void execute() throws Throwable {
-        TransportCommand fetchCommand = recreateCommand();
+        TransportCommand command = recreateCommand();
 
-        setCredentialsProviderFromCache(fetchCommand, git);
+        setCredentialsProviderFromCache(command, git);
         try {
-            Method call = getMethodCall(fetchCommand);
-            call.invoke(fetchCommand);
+            Method call = getMethodCall(command);
+            call.invoke(command);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e);
@@ -35,18 +35,21 @@ abstract class CommandRetrier {
             if (shouldRetry(e.getCause())) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
                 if (credentialsProvider != null) {
-                    fetchCommand = recreateCommand();
+                    command = recreateCommand();
                     try {
-                        Method setCredentialsProvider = getMethodSetCredentialsProvider(fetchCommand);
-                        setCredentialsProvider.invoke(fetchCommand, credentialsProvider);
-                        Method call = getMethodCall(fetchCommand);
-                        call.invoke(fetchCommand);
+                        Method setCredentialsProvider = getMethodSetCredentialsProvider(command);
+                        setCredentialsProvider.invoke(command, credentialsProvider);
+                        Method call = getMethodCall(command);
+                        call.invoke(command);
                     } catch (Exception e1) {
                         e1.printStackTrace();
                     }
                 } else {
                     throw e.getCause();
                 }
+            }  else {
+                e.printStackTrace();
+                throw new VcsIntegrationException(e.getMessage(), e);
             }
         }
     }
@@ -57,12 +60,12 @@ abstract class CommandRetrier {
                 && (e.getMessage().contains("not authorized") || e.getMessage().contains("no CredentialsProvider has been registered"));
     }
 
-    private Method getMethodSetCredentialsProvider(Object fetchCommand) throws NoSuchMethodException {
-        return fetchCommand.getClass().getMethod("setCredentialsProvider", new Class[]{CredentialsProvider.class});
+    private Method getMethodSetCredentialsProvider(Object command) throws NoSuchMethodException {
+        return command.getClass().getMethod("setCredentialsProvider", new Class[]{CredentialsProvider.class});
     }
 
-    private Method getMethodCall(Object fetchCommand) throws NoSuchMethodException {
-        return fetchCommand.getClass().getMethod("call", new Class[]{});
+    private Method getMethodCall(Object command) throws NoSuchMethodException {
+        return command.getClass().getMethod("call", new Class[]{});
     }
 
     private void setCredentialsProviderFromCache(TransportCommand transportCommand, Git git) {
