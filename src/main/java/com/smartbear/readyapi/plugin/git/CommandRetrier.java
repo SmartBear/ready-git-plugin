@@ -21,16 +21,13 @@ abstract class CommandRetrier {
 
     abstract TransportCommand recreateCommand();
 
-    public Object execute() throws Throwable {
+    public Object execute() throws VcsIntegrationException {
         TransportCommand command = recreateCommand();
 
         setCredentialsProviderFromCache(command, git);
         try {
             Method call = getMethodCall(command);
             return call.invoke(command);
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            e.printStackTrace();
-            throw new VcsIntegrationException(e.getMessage(), e);
         } catch (InvocationTargetException e) {
             if (shouldRetry(e.getCause())) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
@@ -48,10 +45,13 @@ abstract class CommandRetrier {
                 } else {
                     throw new VcsIntegrationException(e.getCause().getMessage(), e.getCause());
                 }
-            }  else {
+            } else {
                 e.printStackTrace();
                 throw new VcsIntegrationException(e.getMessage(), e);
             }
+        } catch (Throwable e) {
+            e.printStackTrace();
+            throw new VcsIntegrationException(e.getMessage(), e);
         }
     }
 
