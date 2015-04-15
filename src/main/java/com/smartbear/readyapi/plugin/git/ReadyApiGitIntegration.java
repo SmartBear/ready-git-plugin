@@ -211,24 +211,28 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 return;
             }
 
-            CommandRetrier retrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.pull().setStrategy(MergeStrategy.OURS);
-                }
-            };
-
-            PullResult pullResult = (PullResult) retrier.execute();
-
-            MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
-            if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
-                UISupport.showErrorMessage("Failed to pull the changes from remote repo.");
-            } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
-                UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
-            }
+            pullWithMergeStrategyOurs(git);
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+    }
+
+    private void pullWithMergeStrategyOurs(final Git git) {
+        CommandRetrier retrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.pull().setStrategy(MergeStrategy.OURS);
+            }
+        };
+
+        PullResult pullResult = (PullResult) retrier.execute();
+
+        MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
+        if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
+            UISupport.showErrorMessage("Failed to pull the changes from remote repo.");
+        } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
+            UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
         }
     }
 
@@ -283,31 +287,32 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }
     }
 
-    private boolean pushCommit(final Git git, boolean isDryRunSuccessful) throws GitAPIException {
+    private boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
 
-        try {
-            if (isDryRunSuccessful) {
-                CommandRetrier commandRetrier = new CommandRetrier(git) {
-                    @Override
-                    TransportCommand recreateCommand() {
-                        return git.push();
-                    }
-                };
-                results = (Iterable<PushResult>) commandRetrier.execute();
+        if (isDryRunSuccessful) {
+            results = doPushCommits(git);
+        } else {
+            if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
+                    "Overwrite remote changes")) {
+                pullWithMergeStrategyOurs(git);
+                results = doPushCommits(git);
             } else {
-                if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
-                        "Overwrite remote changes")) {
-                    results = git.push().setForce(true).call();
-                } else {
-                    return false;
-                }
+                return false;
             }
-            return isSuccessFulPush(results);
-        } catch (GitAPIException e) {
-            throw new VcsIntegrationException(e.getMessage(), e);
         }
+        return isSuccessFulPush(results);
 
+    }
+
+    private Iterable<PushResult> doPushCommits(final Git git) {
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.push();
+            }
+        };
+        return  (Iterable<PushResult>) commandRetrier.execute();
     }
 
     private boolean isSuccessFulPush(Iterable<PushResult> resultIterable) {
