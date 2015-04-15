@@ -58,7 +58,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
     public static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     public static final String HEAD_TREE = "HEAD^{tree}";
-    
+
 
     @Override
     public ActivationStatus activateFor(WsdlProject project) {
@@ -211,13 +211,11 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             CommandRetrier commandRetrier = new CommandRetrier(git) {
                 @Override
                 TransportCommand recreateCommand() {
-                    PullCommand pull = git.pull();
-                    pull.setStrategy(MergeStrategy.OURS);
-                    return pull;
+                    return git.pull().setStrategy(MergeStrategy.OURS);
                 }
             };
-            PullResult pullResult = (PullResult)commandRetrier.execute();
-            System.out.println("Pull result for "+ projectFile+ ": " +pullResult.isSuccessful());
+            PullResult pullResult = (PullResult) commandRetrier.execute();
+            System.out.println("Pull result for " + projectFile + ": " + pullResult.isSuccessful());
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -252,7 +250,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         final boolean successfulUpdate = commitUpdates(vcsUpdates, commitMessage, git);
 
-        CommitResult result = successfulUpdate? new CommitResult(SUCCESSFUL, "Commit was successful") :
+        CommitResult result = successfulUpdate ? new CommitResult(SUCCESSFUL, "Commit was successful") :
                 new CommitResult(FAILED, "Commit Failed");
 
         git.getRepository().close();
@@ -315,7 +313,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             final RemoteRefUpdate.Status status = refUpdate.getStatus();
             if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
                 isPushSuccessful = false;
-                logger.warn("Push to one of the remote "+ refUpdate.getSrcRef() +" was not successful: " + status);
+                logger.warn("Push to one of the remote " + refUpdate.getSrcRef() + " was not successful: " + status);
                 break;
             }
         }
@@ -340,14 +338,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         VcsUpdate update;
 
         if (vcsUpdates.isEmpty()) {
-            return ;
+            return;
         } else {
             update = vcsUpdates.iterator().next();
         }
 
         final Git gitObject = createGitObject(update.getProject().getPath());
 
-        for(VcsUpdate vcsUpdate: vcsUpdates){
+        for (VcsUpdate vcsUpdate : vcsUpdates) {
             try {
                 gitObject.checkout().addPath(vcsUpdate.getRelativePath()).call();
             } catch (GitAPIException e) {
@@ -361,13 +359,21 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
-        Git git = createGitObject(project.getPath());
+        final Git git = createGitObject(project.getPath());
 
         try {
-            git.fetch().call(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
+            CommandRetrier retrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.fetch();
+                }
+            };
+            retrier.execute(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
             refList = git.tagList().call();
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        } catch (Throwable t) {
+            throw new VcsIntegrationException(t.getMessage(), t.getCause());
         }
         git.getRepository().close();
 
@@ -376,15 +382,23 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public void createTag(WsdlProject project, String tagName) {
-        Git git = createGitObject(project.getPath());
+        final Git git = createGitObject(project.getPath());
         try {
             git.tag().setName(tagName).call();
-            git.push().setPushTags().call();
+            CommandRetrier retrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.push().setPushTags();
+                }
+            };
+            retrier.execute();
         } catch (RefAlreadyExistsException re) {
             logger.warn("Tag already exists: " + tagName);
             throw new IllegalArgumentException("Tag already exists: " + tagName);
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        } catch (Throwable t) {
+            throw new VcsIntegrationException(t.getMessage(), t.getCause());
         }
     }
 
