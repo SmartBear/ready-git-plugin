@@ -15,6 +15,7 @@ import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
+import com.smartbear.readyapi.plugin.git.ui.ImportProjectFromGitGui;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
@@ -413,7 +414,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return git;
     }
 
-    public void cloneRepository(String repositoryPath, File emptyDirectory) throws GitAPIException {
-        Git git = Git.cloneRepository().setURI(repositoryPath).setDirectory(emptyDirectory).call();
+    public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
+        Git git = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
     }
 }
