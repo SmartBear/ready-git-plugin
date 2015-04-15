@@ -99,7 +99,7 @@ public class ReadyApiGitIntegrationTest {
     }
 
     @Test
-    public void getUpdates() throws Exception {
+    public void testLocalUpdates() throws Exception {
         int added=0, modified=0, deleted=0;
         int expectedAdds=1, expectedModifications=1, expectedDeletions=1; //updates should ignore empty directories
         makeChangesToLocalRepo(localPath);

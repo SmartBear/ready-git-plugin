@@ -17,7 +17,6 @@ import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 import com.smartbear.readyapi.plugin.git.ui.ImportProjectFromGitGui;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
@@ -424,8 +423,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     private Set<String> getTagSetFromRefList(List<Ref> refList) {
         Set<String> tagSet = new HashSet<>();
+        String tag;
         for (Ref ref : refList) {
-            tagSet.add(ref.getName());
+            tag = ref.getName().replaceFirst("refs/tags/", "");
+            tagSet.add(tag);
         }
         return tagSet;
     }
