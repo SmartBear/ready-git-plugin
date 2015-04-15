@@ -90,12 +90,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = createGitObject(projectFile.getPath());
 
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.fetch();
-                }
-            };
+            LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.fetch());
             commandRetrier.execute();
 
             Repository repo = git.getRepository();
@@ -207,12 +202,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = createGitObject(projectFile.getPath());
 
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.pull().setStrategy(MergeStrategy.OURS);
-                }
-            };
+            LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.pull().setStrategy(MergeStrategy.OURS));
             PullResult pullResult = (PullResult) commandRetrier.execute();
             System.out.println("Pull result for " + projectFile + ": " + pullResult.isSuccessful());
         } catch (GitAPIException e) {
@@ -261,13 +251,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         addFilesToIndex(vcsUpdates, git);
         try {
             git.commit().setMessage(commitMessage).call();
-            CommandRetrier retrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.push().setDryRun(true);
-                }
-            };
-            Iterable<PushResult> dryRunResult = (Iterable<PushResult>) retrier.execute();
+            LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.push().setDryRun(true));
+            Iterable<PushResult> dryRunResult = (Iterable<PushResult>) commandRetrier.execute();
             return pushCommit(git, isSuccessFulPush(dryRunResult));
 
         } catch (GitAPIException e) {
@@ -282,12 +267,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         try {
             if (isDryRunSuccessful) {
-                CommandRetrier commandRetrier = new CommandRetrier(git) {
-                    @Override
-                    TransportCommand recreateCommand() {
-                        return git.push();
-                    }
-                };
+                LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.push());
                 results = (Iterable<PushResult>) commandRetrier.execute();
             } else {
                 if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
@@ -361,13 +341,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         final Git git = createGitObject(project.getPath());
 
         try {
-            CommandRetrier retrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.fetch();
-                }
-            };
-            retrier.execute(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
+            LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.fetch());
+            commandRetrier.execute(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
             refList = git.tagList().call();
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -384,13 +359,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         final Git git = createGitObject(project.getPath());
         try {
             git.tag().setName(tagName).call();
-            CommandRetrier retrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.push().setPushTags();
-                }
-            };
-            retrier.execute();
+            LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.push().setPushTags());
+            commandRetrier.execute();
         } catch (RefAlreadyExistsException re) {
             logger.warn("Tag already exists: " + tagName);
             throw new IllegalArgumentException("Tag already exists: " + tagName);
@@ -454,5 +424,20 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         Git git = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
+    }
+
+    private class LocalCommandRetrier extends CommandRetrier{
+
+        TransportCommand command;
+
+        private LocalCommandRetrier(Git git, TransportCommand command) {
+            super(git);
+            this.command = command;
+        }
+
+        @Override
+        TransportCommand recreateCommand() {
+            return this.command;
+        }
     }
 }
