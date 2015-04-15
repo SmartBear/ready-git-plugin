@@ -76,9 +76,10 @@ public class SshRepositoryForm implements RepositoryForm {
         selectFileButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                fileChooser.showOpenDialog(null);
-                File selectedFile = fileChooser.getSelectedFile();
-                textField.setText(selectedFile.getAbsolutePath());
+                if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    File selectedFile = fileChooser.getSelectedFile();
+                    textField.setText(selectedFile.getAbsolutePath());
+                }
             }
         });
         return selectFileButton;

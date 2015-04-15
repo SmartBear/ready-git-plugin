@@ -6,6 +6,7 @@ import com.eviware.soapui.plugins.vcs.ActivationStatus;
 import com.eviware.soapui.plugins.vcs.AuthenticationStatus;
 import com.eviware.soapui.plugins.vcs.CommitResult;
 import com.eviware.soapui.plugins.vcs.HistoryEntry;
+import com.eviware.soapui.plugins.vcs.ImportProjectFromVcsGui;
 import com.eviware.soapui.plugins.vcs.LockHandler;
 import com.eviware.soapui.plugins.vcs.RepositorySelectionGui;
 import com.eviware.soapui.plugins.vcs.VcsIntegration;
@@ -33,7 +34,6 @@ import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.Component;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -67,8 +67,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public Component buildRepositoryDownloadGui(Workspace workspace) {
-        return null;
+    public ImportProjectFromVcsGui buildRepositoryDownloadGui(Workspace workspace) {
+        return new ImportProjectFromGitGui(this);
     }
 
     @Override
@@ -255,7 +255,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             git.commit().setMessage(commitMessage).call();
             Iterable<PushResult> dryRunResult = git.push().setDryRun(true).call();
-            Iterable<PushResult> results;
 
             return pushCommit(git, isSuccessFulPush(dryRunResult));
 
@@ -391,4 +390,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return git;
     }
 
+    public void cloneRepository(String repositoryPath, File emptyDirectory) throws GitAPIException {
+        Git git = Git.cloneRepository().setURI(repositoryPath).setDirectory(emptyDirectory).call();
+    }
 }
