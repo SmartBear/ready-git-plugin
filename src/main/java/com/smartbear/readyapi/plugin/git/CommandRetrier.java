@@ -21,13 +21,13 @@ abstract class CommandRetrier {
 
     abstract TransportCommand recreateCommand();
 
-    public void execute() throws Throwable {
+    public Object execute() throws Throwable {
         TransportCommand command = recreateCommand();
 
         setCredentialsProviderFromCache(command, git);
         try {
             Method call = getMethodCall(command);
-            call.invoke(command);
+            return call.invoke(command);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e);
@@ -40,7 +40,7 @@ abstract class CommandRetrier {
                         Method setCredentialsProvider = getMethodSetCredentialsProvider(command);
                         setCredentialsProvider.invoke(command, credentialsProvider);
                         Method call = getMethodCall(command);
-                        call.invoke(command);
+                        return call.invoke(command);
                     } catch (Exception e1) {
                         e1.printStackTrace();
                         throw new VcsIntegrationException(e.getMessage(), e);

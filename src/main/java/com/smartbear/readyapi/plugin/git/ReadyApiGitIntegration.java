@@ -17,6 +17,8 @@ import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 import com.smartbear.readyapi.plugin.git.ui.ImportProjectFromGitGui;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.PullCommand;
+import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -28,6 +30,7 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
@@ -208,10 +211,13 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             CommandRetrier commandRetrier = new CommandRetrier(git) {
                 @Override
                 TransportCommand recreateCommand() {
-                    return git.pull();
+                    PullCommand pull = git.pull();
+                    pull.setStrategy(MergeStrategy.OURS);
+                    return pull;
                 }
             };
-            commandRetrier.execute();
+            PullResult pullResult = (PullResult)commandRetrier.execute();
+            System.out.println("Pull result for "+ projectFile+ ": " +pullResult.isSuccessful());
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -254,34 +260,51 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return result;
     }
 
-    private boolean commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, Git git) {
+    private boolean commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
         addFilesToIndex(vcsUpdates, git);
         try {
             git.commit().setMessage(commitMessage).call();
-            Iterable<PushResult> dryRunResult = git.push().setDryRun(true).call();
-
+            CommandRetrier retrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.push().setDryRun(true);
+                }
+            };
+            Iterable<PushResult> dryRunResult = (Iterable<PushResult>) retrier.execute();
             return pushCommit(git, isSuccessFulPush(dryRunResult));
 
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        } catch (Throwable e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
     }
 
-    private boolean pushCommit(Git git, boolean isDryRunSuccessful) throws GitAPIException {
+    private boolean pushCommit(final Git git, boolean isDryRunSuccessful) throws GitAPIException {
         Iterable<PushResult> results;
 
-        if (isDryRunSuccessful) {
-            results = git.push().call();
-        } else {
-            if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
-                    "Overwrite remote changes")) {
-                results = git.push().setForce(true).call();
+        try {
+            if (isDryRunSuccessful) {
+                CommandRetrier commandRetrier = new CommandRetrier(git) {
+                    @Override
+                    TransportCommand recreateCommand() {
+                        return git.push();
+                    }
+                };
+                results = (Iterable<PushResult>) commandRetrier.execute();
             } else {
-                return false;
+                if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
+                        "Overwrite remote changes")) {
+                    results = git.push().setForce(true).call();
+                } else {
+                    return false;
+                }
             }
+            return isSuccessFulPush(results);
+        } catch (Throwable throwable) {
+            throw new VcsIntegrationException(throwable.getMessage(), throwable);
         }
 
-        return isSuccessFulPush(results);
     }
 
     private boolean isSuccessFulPush(Iterable<PushResult> resultIterable) {
