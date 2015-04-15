@@ -17,6 +17,7 @@ import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.GitRepositorySelectionGui;
 import com.smartbear.readyapi.plugin.git.ui.ImportProjectFromGitGui;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
@@ -202,9 +203,27 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = createGitObject(projectFile.getPath());
 
-            LocalCommandRetrier commandRetrier = new LocalCommandRetrier(git, git.pull().setStrategy(MergeStrategy.OURS));
-            PullResult pullResult = (PullResult) commandRetrier.execute();
-            System.out.println("Pull result for " + projectFile + ": " + pullResult.isSuccessful());
+            final Set<String> uncommittedChanges = git.status().call().getUncommittedChanges();
+            if (uncommittedChanges.size() > 0) {
+                UISupport.showErrorMessage("There are uncommitted changes, commit or revert back those changes before updating from remote repo");
+                return;
+            }
+
+            CommandRetrier retrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.pull().setStrategy(MergeStrategy.OURS);
+                }
+            };
+
+            PullResult pullResult = (PullResult) retrier.execute();
+
+            MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
+            if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
+                UISupport.showErrorMessage("Failed to pull the changes from remote repo.");
+            } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
+                UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
+            }
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -426,7 +445,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         Git git = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
     }
 
-    private class LocalCommandRetrier extends CommandRetrier{
+    private class LocalCommandRetrier extends CommandRetrier {
 
         TransportCommand command;
 
