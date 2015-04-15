@@ -33,6 +33,6 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
 
     @Override
     public boolean isValidInput() {
-        return true;
+        return getSelected().isValid();
     }
 }
