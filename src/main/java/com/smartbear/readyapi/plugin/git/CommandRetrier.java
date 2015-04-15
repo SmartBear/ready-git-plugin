@@ -43,9 +43,10 @@ abstract class CommandRetrier {
                         call.invoke(command);
                     } catch (Exception e1) {
                         e1.printStackTrace();
+                        throw new VcsIntegrationException(e.getMessage(), e);
                     }
                 } else {
-                    throw e.getCause();
+                    throw new VcsIntegrationException(e.getCause().getMessage(), e.getCause());
                 }
             }  else {
                 e.printStackTrace();
