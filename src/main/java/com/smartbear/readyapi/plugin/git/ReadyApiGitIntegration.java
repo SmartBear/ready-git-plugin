@@ -27,10 +27,12 @@ import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
@@ -58,6 +60,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
     public static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     public static final String HEAD_TREE = "HEAD^{tree}";
+    public static final int MAX_LOG_ENTRIES = 500;
 
 
     @Override
@@ -412,6 +415,25 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public List<HistoryEntry> getFileHistory(WsdlProject project, File file) {
         return null;
+    }
+
+    @Override
+    public List<HistoryEntry> getProjectHistory(WsdlProject project) {
+        List<HistoryEntry> historyEntries = new ArrayList<>();
+        Git git = createGitObject(project.getPath());
+
+        try {
+            Iterable<RevCommit> revCommits = git.log().setMaxCount(MAX_LOG_ENTRIES).call();
+            for (RevCommit revCommit : revCommits) {
+                String revisionName = revCommit.getId().getName();
+                PersonIdent authorIdent = revCommit.getAuthorIdent();
+                String fullMessage = revCommit.getFullMessage();
+                historyEntries.add(new HistoryEntry(revisionName, authorIdent.getWhen(), authorIdent.getName(), fullMessage));
+            }
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+        return historyEntries;
     }
 
     private Git createGitObject(final String localPath) {

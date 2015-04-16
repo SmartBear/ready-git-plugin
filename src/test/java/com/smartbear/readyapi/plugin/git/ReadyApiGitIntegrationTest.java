@@ -17,6 +17,7 @@ package com.smartbear.readyapi.plugin.git;
 
 import com.eviware.soapui.impl.wsdl.WsdlProjectPro;
 import com.eviware.soapui.plugins.vcs.CommitResult;
+import com.eviware.soapui.plugins.vcs.HistoryEntry;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import com.eviware.x.dialogs.XDialogs;
@@ -36,12 +37,14 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -157,6 +160,12 @@ public class ReadyApiGitIntegrationTest {
         gitIntegration.revert(updates);
         final Collection<VcsUpdate> revertedUpdates = gitIntegration.getLocalRepositoryUpdates(dummyProject);
         assertTrue(revertedUpdates.size() == 0);
+    }
+
+    @Test
+    public void testGetProjectHistory(){
+        List<HistoryEntry> projectHistory = gitIntegration.getProjectHistory(dummyProject);
+        assertFalse(projectHistory.isEmpty());
     }
 
     private WsdlProjectPro cloneNewRepo(File path) throws Exception {
