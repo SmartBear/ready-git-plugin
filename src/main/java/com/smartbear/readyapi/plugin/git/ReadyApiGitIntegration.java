@@ -212,6 +212,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             }
 
             pullWithMergeStrategyOurs(git);
+            UISupport.showInfoMessage("Remote changes were pulled successfully.");
         } catch (GitAPIException e) {
             e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -312,7 +313,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 return git.push();
             }
         };
-        return  (Iterable<PushResult>) commandRetrier.execute();
+        return (Iterable<PushResult>) commandRetrier.execute();
     }
 
     private boolean isSuccessFulPush(Iterable<PushResult> resultIterable) {

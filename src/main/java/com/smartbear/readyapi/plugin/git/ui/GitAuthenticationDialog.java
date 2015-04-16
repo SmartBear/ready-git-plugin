@@ -4,7 +4,6 @@ import com.eviware.soapui.support.UISupport;
 import net.miginfocom.swing.MigLayout;
 import org.eclipse.jgit.transport.CredentialsProvider;
 
-import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -23,10 +22,18 @@ public class GitAuthenticationDialog extends JDialog {
 
     public GitAuthenticationDialog(String repoUrl) {
         super(UISupport.getMainFrame(), "Authenticate", true);
+
+        AuthenticateActionListener authenticateActionListener = new AuthenticateActionListener();
         CancelActionListener cancelActionListener = new CancelActionListener();
+
         getRootPane().registerKeyboardAction(cancelActionListener,
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+        getRootPane().registerKeyboardAction(authenticateActionListener,
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+
         setResizable(false);
         setBackground(Color.WHITE);
 
@@ -37,14 +44,16 @@ public class GitAuthenticationDialog extends JDialog {
         contentPanel.add(repositoryForm.getComponent());
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        final JButton authenticateButton = new JButton(new AuthenticateAction());
+
+        final JButton authenticateButton = new JButton("Authenticate");
+        authenticateButton.addActionListener(authenticateActionListener);
         buttonPanel.add(authenticateButton);
 
         JButton cancelButton = new JButton("Cancel");
         cancelButton.addActionListener(cancelActionListener);
         buttonPanel.add(cancelButton);
-        contentPanel.add(buttonPanel, "growx,spanx");
 
+        contentPanel.add(buttonPanel, "growx,spanx");
         setContentPane(contentPanel);
         pack();
     }
@@ -65,22 +74,18 @@ public class GitAuthenticationDialog extends JDialog {
         }
     }
 
-    private class AuthenticateAction extends AbstractAction {
-        public AuthenticateAction() {
-            super("Authenticate");
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            dispose();
-        }
-    }
-
     private class CancelActionListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             dispose();
             cancelled = true;
+        }
+    }
+
+    private class AuthenticateActionListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            dispose();
         }
     }
 }
