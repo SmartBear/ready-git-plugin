@@ -32,18 +32,18 @@ abstract class CommandRetrier {
 
     public Object execute() throws VcsIntegrationException {
         TransportCommand command = recreateCommand();
-        setCredentialsProviderFromCache(command, git);
+        setCredentialsProviderFromCache(command);
 
         try {
             Method call = getMethodCall(command);
-            if (isSshAuthentication(git) && SshKeyFiles.privateKeyHasAPassPhrase()) {
-                CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
+            if (isSshAuthentication() && SshKeyFiles.privateKeyHasAPassPhrase()) {
+                CredentialsProvider credentialsProvider = askForCredentialsIfNotInCache();
                 setCredentialsProvider(command, credentialsProvider);
             }
             return call.invoke(command);
         } catch (InvocationTargetException e) {
             if (shouldRetry(e.getCause())) {
-                CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
+                CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL());
                 if (credentialsProvider != null) {
                     command = recreateCommand();
                     try {
@@ -64,8 +64,16 @@ abstract class CommandRetrier {
         }
     }
 
+    private CredentialsProvider askForCredentialsIfNotInCache() {
+        CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(getRemoteRepoURL());
+        if (credentialsProvider == null) {
+            credentialsProvider = askForCredentials(getRemoteRepoURL());
+        }
+        return credentialsProvider;
+    }
+
     private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) throws Exception {
-        if (isSshAuthentication(git)) {
+        if (isSshAuthentication()) {
             command.setTransportConfigCallback(new SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
         } else {
             Method setCredentialsProvider = getMethodSetCredentialsProvider(command);
@@ -73,8 +81,8 @@ abstract class CommandRetrier {
         }
     }
 
-    private boolean isSshAuthentication(Git git) {
-        return !getRemoteRepoURL(git).startsWith("http");
+    private boolean isSshAuthentication() {
+        return !getRemoteRepoURL().startsWith("http");
     }
 
     boolean shouldRetry(Throwable e) {
@@ -91,8 +99,8 @@ abstract class CommandRetrier {
         return command.getClass().getMethod("call", new Class[]{});
     }
 
-    private void setCredentialsProviderFromCache(TransportCommand transportCommand, Git git) {
-        String remoteRepoURL = getRemoteRepoURL(git);
+    private void setCredentialsProviderFromCache(TransportCommand transportCommand) {
+        String remoteRepoURL = getRemoteRepoURL();
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider != null) {
             transportCommand.setCredentialsProvider(credentialsProvider);
@@ -110,7 +118,7 @@ abstract class CommandRetrier {
         return credentialsProvider;
     }
 
-    private String getRemoteRepoURL(Git git) {
+    private String getRemoteRepoURL() {
         return git.getRepository().getConfig().getString("remote", "origin", "url");
     }
 
