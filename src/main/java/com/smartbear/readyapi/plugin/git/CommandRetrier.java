@@ -36,7 +36,7 @@ abstract class CommandRetrier {
 
         try {
             Method call = getMethodCall(command);
-            if (isSShAuthentication(git) && SshKeyFiles.privateKeyHasAPassPhrase()) {
+            if (isSshAuthentication(git) && SshKeyFiles.privateKeyHasAPassPhrase()) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
                 setCredentialsProvider(command, credentialsProvider);
             }
@@ -65,7 +65,7 @@ abstract class CommandRetrier {
     }
 
     private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) throws Exception {
-        if (isSShAuthentication(git)) {
+        if (isSshAuthentication(git)) {
             command.setTransportConfigCallback(new SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
         } else {
             Method setCredentialsProvider = getMethodSetCredentialsProvider(command);
@@ -73,7 +73,7 @@ abstract class CommandRetrier {
         }
     }
 
-    private boolean isSShAuthentication(Git git) {
+    private boolean isSshAuthentication(Git git) {
         return !getRemoteRepoURL(git).startsWith("http");
     }
 
