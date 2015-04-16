@@ -1,6 +1,7 @@
 package com.smartbear.readyapi.plugin.git.ui;
 
 import com.eviware.soapui.support.StringUtils;
+import com.smartbear.readyapi.plugin.git.SshKeyFiles;
 import com.smartbear.readyapi.plugin.git.SshPassphraseCredentialsProvider;
 import net.miginfocom.swing.MigLayout;
 import org.eclipse.jgit.transport.CredentialsProvider;
@@ -40,7 +41,7 @@ public class SshRepositoryForm implements RepositoryForm {
 
     @Override
     public CredentialsProvider getCredentialsProvider() {
-        return new SshPassphraseCredentialsProvider(passphraseField.getText());
+        return new SshPassphraseCredentialsProvider(passphraseField.getText(), sshKeyPathField.getText());
     }
 
     @Override
@@ -54,6 +55,7 @@ public class SshRepositoryForm implements RepositoryForm {
 
         sshCard.add(new JLabel("SSH key path:"));
         sshKeyPathField = new JTextField();
+        sshKeyPathField.setText(SshKeyFiles.getDefaultKeyPath());
         sshCard.add(sshKeyPathField);
         final JButton selectFileButton = createSelectFileButton(sshKeyPathField);
         sshCard.add(selectFileButton);
