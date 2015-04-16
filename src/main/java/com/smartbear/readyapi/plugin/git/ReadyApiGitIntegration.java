@@ -284,7 +284,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 }
             };
             Iterable<PushResult> dryRunResult = (Iterable<PushResult>) commandRetrier.execute();
-            return pushCommit(git, isSuccessFulPush(dryRunResult));
+            return pushCommit(git, isSuccessfulPush(dryRunResult));
 
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -305,7 +305,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 return false;
             }
         }
-        return isSuccessFulPush(results);
+        return isSuccessfulPush(results);
 
     }
 
@@ -319,7 +319,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return (Iterable<PushResult>) commandRetrier.execute();
     }
 
-    private boolean isSuccessFulPush(Iterable<PushResult> resultIterable) {
+    private boolean isSuccessfulPush(Iterable<PushResult> resultIterable) {
         boolean isPushSuccessful = true;
         PushResult pushResult = resultIterable.iterator().next();
 
