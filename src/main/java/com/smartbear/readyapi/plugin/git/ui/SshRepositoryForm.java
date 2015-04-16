@@ -40,7 +40,7 @@ public class SshRepositoryForm implements RepositoryForm {
 
     @Override
     public CredentialsProvider getCredentialsProvider() {
-        return new SshPassphraseCredentialsProvider(passphraseField.getText());
+        return new SshPassphraseCredentialsProvider(passphraseField.getText(), sshKeyPathField.getText());
     }
 
     @Override
@@ -54,6 +54,7 @@ public class SshRepositoryForm implements RepositoryForm {
 
         sshCard.add(new JLabel("SSH key path:"));
         sshKeyPathField = new JTextField();
+        sshKeyPathField.setText(getDefaultKeyPath());
         sshCard.add(sshKeyPathField);
         final JButton selectFileButton = createSelectFileButton(sshKeyPathField);
         sshCard.add(selectFileButton);
@@ -63,6 +64,18 @@ public class SshRepositoryForm implements RepositoryForm {
         sshCard.add(passphraseField, "spanx");
 
         return sshCard;
+    }
+
+    private String getDefaultKeyPath() {
+        String privateFilePath = getPrivateKeyFilePath("id_dsa");
+        if (!new File(privateFilePath).exists()) {
+            privateFilePath = getPrivateKeyFilePath("id_rsa");
+        }
+        return privateFilePath;
+    }
+
+    private String getPrivateKeyFilePath(String fileName) {
+        return StringUtils.join(new String[]{System.getProperty("user.home"), ".ssh", fileName}, File.separator);
     }
 
     @Override

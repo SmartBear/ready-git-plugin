@@ -7,10 +7,19 @@ import org.eclipse.jgit.transport.URIish;
 
 public class SshPassphraseCredentialsProvider extends CredentialsProvider {
     private String passphrase;
+    private String privateKeyPath;
 
-    public SshPassphraseCredentialsProvider(String passphrase) {
-
+    public SshPassphraseCredentialsProvider(String passphrase, String privateKeyPath) {
         this.passphrase = passphrase;
+        this.privateKeyPath = privateKeyPath;
+    }
+
+    public String getPrivateKeyPath() {
+        return privateKeyPath;
+    }
+
+    public String getPassphrase() {
+        return passphrase;
     }
 
     @Override
