@@ -1,7 +1,6 @@
 package com.smartbear.readyapi.plugin.git;
 
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
-import com.eviware.soapui.support.StringUtils;
 import com.eviware.soapui.support.UISupport;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
@@ -18,10 +17,8 @@ import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.util.FS;
 
-import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Scanner;
 
 abstract class CommandRetrier {
 
@@ -39,7 +36,7 @@ abstract class CommandRetrier {
 
         try {
             Method call = getMethodCall(command);
-            if (isSShAuthentication(git) && privateKeyHasAPassPhrase()) {
+            if (isSShAuthentication(git) && SshKeyFiles.privateKeyHasAPassPhrase()) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL(git));
                 setCredentialsProvider(command, credentialsProvider);
             }
@@ -65,34 +62,6 @@ abstract class CommandRetrier {
         } catch (Throwable e) {
             throw new VcsIntegrationException(e.getMessage(), e);
         }
-    }
-
-    private boolean privateKeyHasAPassPhrase() {
-        File idRsa = getPrivateKeyFile("id_rsa");
-        File idDsa = getPrivateKeyFile("id_dsa");
-        return (idRsa.exists() || idDsa.exists()) && (keyFileIsEncrypted(idRsa) || keyFileIsEncrypted(idDsa));
-    }
-
-    private boolean keyFileIsEncrypted(File keyFile) {
-        try {
-            if (keyFile.exists()) {
-                Scanner scanner = new Scanner(keyFile);
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
-                    if (line.contains("ENCRYPTED")) {
-                        return true;
-                    }
-                }
-            }
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-
-        return false;
-    }
-
-    private File getPrivateKeyFile(String fileName) {
-        return new File(StringUtils.join(new String[]{System.getProperty("user.home"), ".ssh", fileName}, File.separator));
     }
 
     private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) throws Exception {
