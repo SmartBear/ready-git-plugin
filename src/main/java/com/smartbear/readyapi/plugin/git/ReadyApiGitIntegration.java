@@ -3,7 +3,6 @@ package com.smartbear.readyapi.plugin.git;
 import com.eviware.soapui.impl.wsdl.WsdlProject;
 import com.eviware.soapui.model.workspace.Workspace;
 import com.eviware.soapui.plugins.vcs.ActivationStatus;
-import com.eviware.soapui.plugins.vcs.AuthenticationStatus;
 import com.eviware.soapui.plugins.vcs.CommitResult;
 import com.eviware.soapui.plugins.vcs.HistoryEntry;
 import com.eviware.soapui.plugins.vcs.ImportProjectFromVcsGui;
@@ -76,16 +75,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public ImportProjectFromVcsGui buildRepositoryDownloadGui(Workspace workspace) {
         return new ImportProjectFromGitGui(this);
-    }
-
-    @Override
-    public AuthenticationStatus authenticate(WsdlProject project) {
-        return null;
-    }
-
-    @Override
-    public AuthenticationStatus checkAuthenticationStatus(WsdlProject project) {
-        return null;
     }
 
     @Override
@@ -242,11 +231,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public void deleteFile(WsdlProject project, File file) throws IOException {
-
-    }
-
-    @Override
-    public void moveFile(WsdlProject project, File file, File targetFile) throws IOException {
 
     }
 
