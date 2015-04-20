@@ -229,8 +229,8 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         list.add(MergeStrategy.OURS.getName());
         list.add(MergeStrategy.THEIRS.getName());
 
-        String strategy = UISupport.prompt("Your changes are conflicting with changes in the remote repository.\n" +
-                "Please select which merge strategy to use to resolve these conflicts.\n",
+        String strategy = UISupport.prompt("Pulling changes from the remote repository may result in conflicts.\n" +
+                "Please select which merge strategy to use to resolve any such conflicts.\n",
                 "Select Merge Strategy",
                 list.toArray(new String[list.size()]),
                 MergeStrategy.OURS.getName());
