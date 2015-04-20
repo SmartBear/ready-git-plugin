@@ -7,6 +7,8 @@ import com.smartbear.readyapi.plugin.git.ReadyApiGitIntegration;
 import java.awt.Component;
 import java.beans.PropertyChangeListener;
 
+import static com.smartbear.readyapi.plugin.git.ui.help.HelpUrls.GIT_PLUGIN_WIKI;
+
 public class GitRepositorySelectionGui extends AbstractRepositorySelectionGui implements RepositorySelectionGui {
 
     private WsdlProject project;
@@ -19,7 +21,7 @@ public class GitRepositorySelectionGui extends AbstractRepositorySelectionGui im
 
     @Override
     public Component getComponent() {
-        return createGui("http://readyapi.smartbear.com","Learn about sharing projects with Git");
+        return createGui(GIT_PLUGIN_WIKI, "Learn about sharing projects with Git");
     }
 
     @Override

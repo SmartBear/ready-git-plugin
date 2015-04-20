@@ -9,6 +9,8 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import java.awt.Component;
 import java.io.File;
 
+import static com.smartbear.readyapi.plugin.git.ui.help.HelpUrls.GIT_PLUGIN_WIKI;
+
 public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui implements ImportProjectFromVcsGui {
     private ReadyApiGitIntegration readyApiGitIntegration;
 
@@ -18,7 +20,7 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
 
     @Override
     public Component getComponent() {
-        return createGui("http://readyapi.smartbear.com","Learn about importing projects using Git");
+        return createGui(GIT_PLUGIN_WIKI, "Learn about importing projects using Git");
     }
 
     @Override
