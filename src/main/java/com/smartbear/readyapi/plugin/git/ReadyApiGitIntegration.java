@@ -237,23 +237,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return strategy == null ? null : MergeStrategy.get(strategy);
     }
 
-    private static class MergeStrategyWrapper {
-        private MergeStrategy strategy;
-
-        private MergeStrategyWrapper(MergeStrategy strategy) {
-            this.strategy = strategy;
-        }
-
-        @Override
-        public String toString() {
-            return strategy.getName();
-        }
-
-        public MergeStrategy getStrategy() {
-            return strategy;
-        }
-    }
-
     private void pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
         CommandRetrier retrier = new CommandRetrier(git) {
             @Override
