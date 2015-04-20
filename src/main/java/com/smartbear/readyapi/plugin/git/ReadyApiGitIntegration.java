@@ -57,11 +57,10 @@ import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.MODIFIED;
 @VcsIntegrationConfiguration(name = "Git", description = "Git Version Control System")
 public class ReadyApiGitIntegration implements VcsIntegration {
 
-    private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
     public static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     public static final String HEAD_TREE = "HEAD^{tree}";
     public static final int MAX_LOG_ENTRIES = 500;
-
+    private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
 
     @Override
     public ActivationStatus activateFor(WsdlProject project) {
@@ -213,20 +212,53 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 UISupport.showErrorMessage("There are uncommitted changes, commit or revert back those changes before updating from remote repo");
                 return;
             }
+            MergeStrategy mergeStrategy = promptForMergeStrategy();
+            if (mergeStrategy == null) {
+                return;
+            }
 
-            pullWithMergeStrategyOurs(git);
+            pullWithMergeStrategy(git, mergeStrategy);
             UISupport.showInfoMessage("Remote changes were pulled successfully.");
         } catch (GitAPIException e) {
-            e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
     }
 
-    private void pullWithMergeStrategyOurs(final Git git) {
+    private MergeStrategy promptForMergeStrategy() {
+        List<String> list = new ArrayList<>();
+        list.add(MergeStrategy.OURS.getName());
+        list.add(MergeStrategy.THEIRS.getName());
+
+        String strategy = UISupport.prompt("Your changes are conflicting with changes in the remote repository.\n" +
+                "Please select which merge strategy to use to resolve these conflicts.\n",
+                "Select Merge Strategy",
+                list.toArray(new String[list.size()]),
+                MergeStrategy.OURS.getName());
+        return strategy == null ? null : MergeStrategy.get(strategy);
+    }
+
+    private static class MergeStrategyWrapper {
+        private MergeStrategy strategy;
+
+        private MergeStrategyWrapper(MergeStrategy strategy) {
+            this.strategy = strategy;
+        }
+
+        @Override
+        public String toString() {
+            return strategy.getName();
+        }
+
+        public MergeStrategy getStrategy() {
+            return strategy;
+        }
+    }
+
+    private void pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
         CommandRetrier retrier = new CommandRetrier(git) {
             @Override
             TransportCommand recreateCommand() {
-                return git.pull().setStrategy(MergeStrategy.OURS);
+                return git.pull().setStrategy(mergeStrategy);
             }
         };
 
@@ -234,7 +266,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
         if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
-            UISupport.showErrorMessage("Failed to pull the changes from remote repo.");
+            UISupport.showErrorMessage("Failed to pull the changes from remote repository.");
         } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
             UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
         }
@@ -297,13 +329,13 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         if (isDryRunSuccessful) {
             results = doPushCommits(git);
         } else {
-            if (UISupport.confirm("Your changes are conflicting, do you still want to commit and overwrite remote changes?",
-                    "Overwrite remote changes")) {
-                pullWithMergeStrategyOurs(git);
-                results = doPushCommits(git);
-            } else {
+            MergeStrategy mergeStrategy = promptForMergeStrategy();
+            if (mergeStrategy == null) {
                 return false;
             }
+
+            pullWithMergeStrategy(git, mergeStrategy);
+            results = doPushCommits(git);
         }
         return isSuccessfulPush(results);
 
