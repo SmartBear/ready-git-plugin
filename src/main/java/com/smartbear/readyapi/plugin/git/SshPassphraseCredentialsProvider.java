@@ -5,7 +5,7 @@ import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.URIish;
 
-public class SshPassphraseCredentialsProvider extends CredentialsProvider {
+public class SshPassphraseCredentialsProvider extends CredentialsProvider implements Credentials {
     private String passphrase;
     private String privateKeyPath;
 
@@ -18,8 +18,13 @@ public class SshPassphraseCredentialsProvider extends CredentialsProvider {
         return privateKeyPath;
     }
 
-    public String getPassphrase() {
+    public String getPassword() {
         return passphrase;
+    }
+
+    @Override
+    public String getUsername() {
+        return getPrivateKeyPath();
     }
 
     @Override

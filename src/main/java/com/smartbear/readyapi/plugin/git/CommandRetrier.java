@@ -65,7 +65,7 @@ abstract class CommandRetrier {
     }
 
     private CredentialsProvider askForCredentialsIfNotInCache() {
-        CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(getRemoteRepoURL());
+        CredentialsProvider credentialsProvider = GitCredentialProviderCache.instance().getCredentialsProvider(getRemoteRepoURL());
         if (credentialsProvider == null) {
             credentialsProvider = askForCredentials(getRemoteRepoURL());
         }
@@ -101,7 +101,7 @@ abstract class CommandRetrier {
 
     private void setCredentialsProviderFromCache(TransportCommand transportCommand) {
         String remoteRepoURL = getRemoteRepoURL();
-        CredentialsProvider credentialsProvider = GitCredentialProviderCache.getCredentialsProvider(remoteRepoURL);
+        CredentialsProvider credentialsProvider = GitCredentialProviderCache.instance().getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider != null) {
             transportCommand.setCredentialsProvider(credentialsProvider);
         }
@@ -114,7 +114,7 @@ abstract class CommandRetrier {
         authenticationDialog.setVisible(true);
 
         credentialsProvider = authenticationDialog.getCredentialsProvider();
-        GitCredentialProviderCache.addCredentialProvider(credentialsProvider, remoteRepoURL);
+        GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, remoteRepoURL);
         return credentialsProvider;
     }
 
@@ -138,7 +138,7 @@ abstract class CommandRetrier {
             JSch jsch = super.getJSch(hc, fs);
             jsch.removeAllIdentity();
 
-            jsch.addIdentity(credentialsProvider.getPrivateKeyPath(), credentialsProvider.getPassphrase());
+            jsch.addIdentity(credentialsProvider.getPrivateKeyPath(), credentialsProvider.getPassword());
             return jsch;
         }
     }

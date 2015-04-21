@@ -464,7 +464,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
         try {
             initLocalRepository(project, repositoryPath);
-            GitCredentialProviderCache.addCredentialProvider(credentialsProvider, repositoryPath);
+            GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
         } catch (GitAPIException | IOException e) {
             throw new VcsIntegrationException("Failed to share project", e);
         }

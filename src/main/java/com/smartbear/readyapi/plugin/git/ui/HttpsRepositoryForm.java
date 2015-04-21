@@ -1,9 +1,9 @@
 package com.smartbear.readyapi.plugin.git.ui;
 
 import com.eviware.soapui.support.StringUtils;
+import com.smartbear.readyapi.plugin.git.DefaultCredentialsProvider;
 import net.miginfocom.swing.MigLayout;
 import org.eclipse.jgit.transport.CredentialsProvider;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -35,7 +35,7 @@ public class HttpsRepositoryForm implements RepositoryForm {
 
     @Override
     public CredentialsProvider getCredentialsProvider() {
-        return new UsernamePasswordCredentialsProvider(usernameField.getText(), passwordField.getText());
+        return new DefaultCredentialsProvider(usernameField.getText(), passwordField.getText());
     }
 
     @Override
