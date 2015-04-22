@@ -5,7 +5,6 @@ import com.eviware.soapui.plugins.vcs.RepositorySelectionGui;
 import com.smartbear.readyapi.plugin.git.ReadyApiGitIntegration;
 
 import java.awt.Component;
-import java.beans.PropertyChangeListener;
 
 import static com.smartbear.readyapi.plugin.git.ui.help.HelpUrls.GIT_PLUGIN_WIKI;
 
@@ -25,7 +24,7 @@ public class GitRepositorySelectionGui extends AbstractRepositorySelectionGui im
     }
 
     @Override
-    public void createRemoteRepository() {
+    public void initializeRepository() {
         gitIntegration.shareProject(project, getSelected().getRepositoryPath(), getSelected().getCredentialsProvider());
     }
 
@@ -38,13 +37,4 @@ public class GitRepositorySelectionGui extends AbstractRepositorySelectionGui im
     public boolean isValidInput() {
         return getSelected().isValid();
     }
-
-    @Override
-    public void addPropertyChangeListener(PropertyChangeListener propertyChangeListener) {
-    }
-
-    @Override
-    public void removePropertyChangeListener(PropertyChangeListener propertyChangeListener) {
-    }
-
 }
