@@ -88,7 +88,10 @@ abstract class CommandRetrier {
     boolean shouldRetry(Throwable e) {
         return e instanceof TransportException
                 && e.getMessage() != null
-                && (e.getMessage().contains("not authorized") || e.getMessage().contains("no CredentialsProvider has been registered"));
+                && (e.getMessage().contains("not authorized")
+                || e.getMessage().contains("Auth fail")
+                || e.getMessage().contains("USERAUTH fail")
+                || e.getMessage().contains("no CredentialsProvider has been registered"));
     }
 
     private Method getMethodSetCredentialsProvider(Object command) throws NoSuchMethodException {
