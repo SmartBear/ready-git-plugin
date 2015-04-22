@@ -5,7 +5,7 @@ import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.URIish;
 
-public class SshPassphraseCredentialsProvider extends CredentialsProvider {
+public class SshPassphraseCredentialsProvider extends CredentialsProvider implements Credentials {
     private String passphrase;
     private String privateKeyPath;
 
@@ -18,8 +18,18 @@ public class SshPassphraseCredentialsProvider extends CredentialsProvider {
         return privateKeyPath;
     }
 
-    public String getPassphrase() {
+    public String getPassword() {
         return passphrase;
+    }
+
+    /**
+     *
+     * @return private key path as username
+     */
+    @Override
+    public String getUsername() {
+        //Have a look at GitCredentialProviderCache before you change this. There it uses Credentials#getUsername() method to read username/key file path
+        return getPrivateKeyPath();
     }
 
     @Override
