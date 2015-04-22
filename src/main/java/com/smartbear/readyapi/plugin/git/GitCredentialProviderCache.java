@@ -5,6 +5,8 @@ import com.eviware.soapui.settings.DESCipher;
 import com.eviware.soapui.support.types.StringList;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +15,8 @@ import java.util.Map;
  * Class to keep the in memory copy of CredentialsProvider so that user doesn't have to enter credentials for VCS every operation (pull, push, fetch)
  */
 public class GitCredentialProviderCache {
+
+    private final static Logger logger = LoggerFactory.getLogger(GitCredentialProviderCache.class);
 
     private static final String VCS_REPO_SETTINGS = "VcsSettings@repoSettings";
     public static final String SEPARATOR = "#_#";
@@ -57,7 +61,7 @@ public class GitCredentialProviderCache {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Failed to read saved repository credentials", e);
         }
 
     }
@@ -74,15 +78,10 @@ public class GitCredentialProviderCache {
                 stringBuilder.append(DESCipher.encrypt(credentials.getPassword()));
                 repoSettingsList.add(stringBuilder.toString());
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Failed to save repository credentials", e);
             }
         }
         SoapUI.getSettings().setString(VCS_REPO_SETTINGS, repoSettingsList.toXml());
-        try {
-            SoapUI.saveSettings();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
 }

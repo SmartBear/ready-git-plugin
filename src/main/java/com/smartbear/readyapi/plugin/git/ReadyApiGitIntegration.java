@@ -102,7 +102,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 updates.add(new VcsUpdate(null, convertToVcsUpdateType(entry.getChangeType()), entry.getNewPath(), entry.getOldPath()));
             }
         } catch (GitAPIException | IOException e) {
-            e.printStackTrace();
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
         return updates;
@@ -140,7 +139,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             final Status status = git.status().call();
             fillLocalUpdates(project, updates, status);
         } catch (GitAPIException e) {
-            e.printStackTrace();
+            logger.error("Failed to read local changes", e);
         }
         git.getRepository().close();
 

@@ -1,11 +1,15 @@
 package com.smartbear.readyapi.plugin.git;
 
 import com.eviware.soapui.support.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Scanner;
 
 public class SshKeyFiles {
+
+    private final static Logger logger = LoggerFactory.getLogger(SshKeyFiles.class);
 
     public static String getDefaultKeyPath() {
         String privateFilePath = getPrivateKeyFilePath("id_dsa");
@@ -30,8 +34,8 @@ public class SshKeyFiles {
                     }
                 }
             }
-        } catch (Throwable e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            logger.error("Error while reading private key", e);
         }
 
         return false;

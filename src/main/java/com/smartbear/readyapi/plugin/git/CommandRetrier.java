@@ -59,7 +59,7 @@ abstract class CommandRetrier {
             } else {
                 throw new VcsIntegrationException(e.getMessage(), e);
             }
-        } catch (Throwable e) {
+        } catch (Exception e) {
             throw new VcsIntegrationException(e.getMessage(), e);
         }
     }
