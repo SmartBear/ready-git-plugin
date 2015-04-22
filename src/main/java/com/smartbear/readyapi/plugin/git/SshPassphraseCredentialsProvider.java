@@ -22,8 +22,13 @@ public class SshPassphraseCredentialsProvider extends CredentialsProvider implem
         return passphrase;
     }
 
+    /**
+     *
+     * @return private key path as username
+     */
     @Override
     public String getUsername() {
+        //Have a look at GitCredentialProviderCache before you change this. There it uses Credentials#getUsername() method to read username/key file path
         return getPrivateKeyPath();
     }
 
