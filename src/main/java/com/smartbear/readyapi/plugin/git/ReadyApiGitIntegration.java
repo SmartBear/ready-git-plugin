@@ -41,9 +41,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -138,15 +142,16 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Status status = git.status().call();
             fillLocalUpdates(project, updates, status);
-        } catch (GitAPIException e) {
+        } catch (GitAPIException | IOException e) {
             logger.error("Failed to read local changes", e);
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
         git.getRepository().close();
 
         return updates;
     }
 
-    private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) {
+    private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) throws IOException {
         for (String fileAdded : status.getAdded()) {
             updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
         }
@@ -173,7 +178,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
         for (String fileChanged : status.getUntrackedFolders()) {
             File untrackedFolder = new File(project.getPath() + "/" + fileChanged);
-            if (untrackedFolder.list().length > 0) {
+            if (!isEmptyDir(untrackedFolder.toPath())) {
                 updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
             }
         }
@@ -183,6 +188,22 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             update.setConflictingUpdate(true);
             updates.add(update);
         }
+    }
+
+    private boolean isEmptyDir(Path dir) throws IOException {
+        DirectoryStream<Path> directoryStream = Files.newDirectoryStream(dir);
+
+        Iterator files = directoryStream.iterator();
+        while (files.hasNext()) {
+            Path path = (Path) files.next();
+            if (!path.toFile().isDirectory()){ // If there is any file other than only empty dirs then this is not an empty dir
+                directoryStream.close();
+                return false;
+            }
+        }
+
+        directoryStream.close();
+        return true;
     }
 
     @Override

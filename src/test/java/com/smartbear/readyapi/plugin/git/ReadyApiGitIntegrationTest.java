@@ -190,8 +190,8 @@ public class ReadyApiGitIntegrationTest {
     }
 
     private void addEmptyDir(File path) throws IOException {
-        File emptyDir = new File(path + "/newfile");
-        emptyDir.mkdir();
+        File emptyDir = new File(path + "/dirLevel1/dirLevel2");
+        emptyDir.mkdirs();
     }
 
     private void updateFile(File path) throws IOException {
