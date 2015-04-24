@@ -4,7 +4,6 @@ import com.eviware.soapui.plugins.vcs.ImportProjectFromVcsGui;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsRepositoryInfo;
 import com.smartbear.readyapi.plugin.git.ReadyApiGitIntegration;
-import org.eclipse.jgit.api.errors.GitAPIException;
 
 import java.awt.Component;
 import java.io.File;
@@ -28,7 +27,7 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
         try {
             readyApiGitIntegration.cloneRepository(getSelected().getRepositoryPath(), getSelected().getCredentialsProvider(), emptyDirectory);
             return new VcsRepositoryInfo("Git", getSelected().getRepositoryPath());
-        } catch (GitAPIException e) {
+        } catch (Exception e) {
             throw new VcsIntegrationException("Failed to clone remote repository", e);
         }
     }
