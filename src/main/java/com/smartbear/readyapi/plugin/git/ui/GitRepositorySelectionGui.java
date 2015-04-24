@@ -20,7 +20,7 @@ public class GitRepositorySelectionGui extends AbstractRepositorySelectionGui im
 
     @Override
     public Component getComponent() {
-        return createGui(GIT_PLUGIN_WIKI, "Learn about sharing projects with Git");
+        return createGui(GIT_PLUGIN_WIKI, "Learn about sharing projects with Git", gitIntegration.getRemoteRepositoryUrl(project));
     }
 
     @Override

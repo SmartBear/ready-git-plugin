@@ -20,7 +20,7 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
 
     @Override
     public Component getComponent() {
-        return createGui(GIT_PLUGIN_WIKI, "Learn about importing projects using Git");
+        return createGui(GIT_PLUGIN_WIKI, "Learn about importing projects using Git", null);
     }
 
     @Override
