@@ -86,13 +86,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         try {
             final Git git = createGitObject(projectFile.getPath());
 
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.fetch();
-                }
-            };
-            commandRetrier.execute();
+            gitFetch(git);
 
             Repository repo = git.getRepository();
             ObjectReader reader = repo.newObjectReader();
@@ -111,28 +105,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return updates;
     }
 
-    private CanonicalTreeParser createTreeParser(Repository repo, ObjectReader reader, String treeName) throws IOException {
-        ObjectId head = repo.resolve(treeName);
-        CanonicalTreeParser localRepoTreeParser = new CanonicalTreeParser();
-        localRepoTreeParser.reset(reader, head);
-        return localRepoTreeParser;
-    }
-
-    private VcsUpdate.VcsUpdateType convertToVcsUpdateType(DiffEntry.ChangeType changeType) {
-        switch (changeType) {
-            case ADD:
-                return VcsUpdate.VcsUpdateType.ADDED;
-            case DELETE:
-                return VcsUpdate.VcsUpdateType.DELETED;
-            case COPY:
-            case RENAME:
-                return VcsUpdate.VcsUpdateType.MOVED;
-            case MODIFY:
-                return VcsUpdate.VcsUpdateType.MODIFIED;
-            default:
-                return null;
-        }
-    }
 
     @Override
     public Collection<VcsUpdate> getLocalRepositoryUpdates(WsdlProject project) {
@@ -149,61 +121,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         git.getRepository().close();
 
         return updates;
-    }
-
-    private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) throws IOException {
-        for (String fileAdded : status.getAdded()) {
-            updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
-        }
-
-        for (String fileChanged : status.getChanged()) {
-            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getRemoved()) {
-            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getMissing()) {
-            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getModified()) {
-            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getUntracked()) {
-            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getUntrackedFolders()) {
-            File untrackedFolder = new File(project.getPath() + "/" + fileChanged);
-            if (!isEmptyDir(untrackedFolder.toPath())) {
-                updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
-            }
-        }
-
-        for (String fileChanged : status.getConflicting()) {
-            final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
-            update.setConflictingUpdate(true);
-            updates.add(update);
-        }
-    }
-
-    private boolean isEmptyDir(Path dir) throws IOException {
-        DirectoryStream<Path> directoryStream = Files.newDirectoryStream(dir);
-
-        Iterator files = directoryStream.iterator();
-        while (files.hasNext()) {
-            Path path = (Path) files.next();
-            if (!path.toFile().isDirectory()){ // If there is any file other than only empty dirs then this is not an empty dir
-                directoryStream.close();
-                return false;
-            }
-        }
-
-        directoryStream.close();
-        return true;
     }
 
     @Override
@@ -233,37 +150,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }
     }
 
-    private MergeStrategy promptForMergeStrategy() {
-        List<String> list = new ArrayList<>();
-        list.add(MergeStrategy.OURS.getName());
-        list.add(MergeStrategy.THEIRS.getName());
-
-        String strategy = UISupport.prompt("Pulling changes from the remote repository may result in conflicts.\n" +
-                "Please select which merge strategy to use to resolve any such conflicts.\n",
-                "Select Merge Strategy",
-                list.toArray(new String[list.size()]),
-                MergeStrategy.OURS.getName());
-        return strategy == null ? null : MergeStrategy.get(strategy);
-    }
-
-    private void pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
-        CommandRetrier retrier = new CommandRetrier(git) {
-            @Override
-            TransportCommand recreateCommand() {
-                return git.pull().setStrategy(mergeStrategy);
-            }
-        };
-
-        PullResult pullResult = (PullResult) retrier.execute();
-
-        MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
-        if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
-            UISupport.showErrorMessage("Failed to pull the changes from remote repository.");
-        } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
-            UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
-        }
-    }
-
     @Override
     public void deleteFile(WsdlProject project, File file) throws IOException {
 
@@ -290,79 +176,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         git.getRepository().close();
 
         return result;
-    }
-
-    private boolean commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
-        addFilesToIndex(vcsUpdates, git);
-        try {
-            git.commit().setMessage(commitMessage).call();
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.push().setDryRun(true);
-                }
-            };
-            Iterable<PushResult> dryRunResult = (Iterable<PushResult>) commandRetrier.execute();
-            return pushCommit(git, isSuccessfulPush(dryRunResult));
-
-        } catch (GitAPIException e) {
-            throw new VcsIntegrationException(e.getMessage(), e.getCause());
-        }
-    }
-
-    private boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
-        Iterable<PushResult> results;
-
-        if (isDryRunSuccessful) {
-            results = doPushCommits(git);
-        } else {
-            MergeStrategy mergeStrategy = promptForMergeStrategy();
-            if (mergeStrategy == null) {
-                return false;
-            }
-
-            pullWithMergeStrategy(git, mergeStrategy);
-            results = doPushCommits(git);
-        }
-        return isSuccessfulPush(results);
-
-    }
-
-    private Iterable<PushResult> doPushCommits(final Git git) {
-        CommandRetrier commandRetrier = new CommandRetrier(git) {
-            @Override
-            TransportCommand recreateCommand() {
-                return git.push();
-            }
-        };
-        return (Iterable<PushResult>) commandRetrier.execute();
-    }
-
-    private boolean isSuccessfulPush(Iterable<PushResult> resultIterable) {
-        boolean isPushSuccessful = true;
-        PushResult pushResult = resultIterable.iterator().next();
-
-        for (final RemoteRefUpdate refUpdate : pushResult.getRemoteUpdates()) {
-            final RemoteRefUpdate.Status status = refUpdate.getStatus();
-            if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
-                isPushSuccessful = false;
-                logger.warn("Push to one of the remote " + refUpdate.getSrcRef() + " was not successful: " + status);
-                break;
-            }
-        }
-
-        return isPushSuccessful;
-    }
-
-    private void addFilesToIndex(Collection<VcsUpdate> vcsUpdates, Git git) {
-        for (VcsUpdate vcsUpdate : vcsUpdates) {
-            try {
-                git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
-
-            } catch (GitAPIException e) {
-                throw new VcsIntegrationException(e.getMessage(), e.getCause());
-            }
-        }
     }
 
     @Override
@@ -395,13 +208,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         final Git git = createGitObject(project.getPath());
 
         try {
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.fetch();
-                }
-            };
-            commandRetrier.execute(); //To make sure we fetch the latest tags. Also fetch is more or less a harmless operation.
+            gitFetch(git);
             refList = git.tagList().call();
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -455,6 +262,118 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return historyEntries;
     }
 
+    public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
+        try {
+            initLocalRepository(project, repositoryPath);
+            GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
+        } catch (GitAPIException | IOException e) {
+            throw new VcsIntegrationException("Failed to share project", e);
+        }
+    }
+
+    private void gitFetch(final Git git) {
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.fetch();
+            }
+        };
+        commandRetrier.execute();
+    }
+
+    private Iterable<PushResult> doPushCommits(final Git git) {
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.push();
+            }
+        };
+        return (Iterable<PushResult>) commandRetrier.execute();
+    }
+
+    private boolean commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
+        addFilesToIndex(vcsUpdates, git);
+        try {
+            git.commit().setMessage(commitMessage).call();
+            CommandRetrier commandRetrier = new CommandRetrier(git) {
+                @Override
+                TransportCommand recreateCommand() {
+                    return git.push().setDryRun(true);
+                }
+            };
+            Iterable<PushResult> dryRunResult = (Iterable<PushResult>) commandRetrier.execute();
+            return pushCommit(git, isSuccessfulPush(dryRunResult));
+
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+    }
+
+    private void pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
+        CommandRetrier retrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.pull().setStrategy(mergeStrategy);
+            }
+        };
+
+        PullResult pullResult = (PullResult) retrier.execute();
+
+        MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
+        if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
+            UISupport.showErrorMessage("Failed to pull the changes from remote repository.");
+        } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
+            UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
+        }
+    }
+
+    private boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
+        Iterable<PushResult> results;
+
+        if (isDryRunSuccessful) {
+            results = doPushCommits(git);
+        } else {
+            MergeStrategy mergeStrategy = promptForMergeStrategy();
+            if (mergeStrategy == null) {
+                return false;
+            }
+
+            pullWithMergeStrategy(git, mergeStrategy);
+            results = doPushCommits(git);
+        }
+        return isSuccessfulPush(results);
+
+    }
+
+    private MergeStrategy promptForMergeStrategy() {
+        List<String> list = new ArrayList<>();
+        list.add(MergeStrategy.OURS.getName());
+        list.add(MergeStrategy.THEIRS.getName());
+
+        String strategy = UISupport.prompt("Pulling changes from the remote repository may result in conflicts.\n" +
+                "Please select which merge strategy to use to resolve any such conflicts.\n",
+                "Select Merge Strategy",
+                list.toArray(new String[list.size()]),
+                MergeStrategy.OURS.getName());
+        return strategy == null ? null : MergeStrategy.get(strategy);
+    }
+
+    private boolean isEmptyDir(Path dir) throws IOException {
+        DirectoryStream<Path> directoryStream = Files.newDirectoryStream(dir);
+
+        Iterator files = directoryStream.iterator();
+        while (files.hasNext()) {
+            Path path = (Path) files.next();
+            if (!path.toFile().isDirectory()){ // If there is any file other than only empty dirs then this is not an empty dir
+                directoryStream.close();
+                return false;
+            }
+        }
+
+        directoryStream.close();
+        return true;
+    }
+
     private Git createGitObject(final String localPath) {
         final Repository localRepo;
 
@@ -480,13 +399,92 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return tagSet;
     }
 
+    private boolean isSuccessfulPush(Iterable<PushResult> resultIterable) {
+        boolean isPushSuccessful = true;
+        PushResult pushResult = resultIterable.iterator().next();
 
-    public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
-        try {
-            initLocalRepository(project, repositoryPath);
-            GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
-        } catch (GitAPIException | IOException e) {
-            throw new VcsIntegrationException("Failed to share project", e);
+        for (final RemoteRefUpdate refUpdate : pushResult.getRemoteUpdates()) {
+            final RemoteRefUpdate.Status status = refUpdate.getStatus();
+            if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
+                isPushSuccessful = false;
+                logger.warn("Push to one of the remote " + refUpdate.getSrcRef() + " was not successful: " + status);
+                break;
+            }
+        }
+
+        return isPushSuccessful;
+    }
+
+    private CanonicalTreeParser createTreeParser(Repository repo, ObjectReader reader, String treeName) throws IOException {
+        ObjectId head = repo.resolve(treeName);
+        CanonicalTreeParser localRepoTreeParser = new CanonicalTreeParser();
+        localRepoTreeParser.reset(reader, head);
+        return localRepoTreeParser;
+    }
+
+    private void addFilesToIndex(Collection<VcsUpdate> vcsUpdates, Git git) {
+        for (VcsUpdate vcsUpdate : vcsUpdates) {
+            try {
+                git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
+
+            } catch (GitAPIException e) {
+                throw new VcsIntegrationException(e.getMessage(), e.getCause());
+            }
+        }
+    }
+
+    private VcsUpdate.VcsUpdateType convertToVcsUpdateType(DiffEntry.ChangeType changeType) {
+        switch (changeType) {
+            case ADD:
+                return VcsUpdate.VcsUpdateType.ADDED;
+            case DELETE:
+                return VcsUpdate.VcsUpdateType.DELETED;
+            case COPY:
+            case RENAME:
+                return VcsUpdate.VcsUpdateType.MOVED;
+            case MODIFY:
+                return VcsUpdate.VcsUpdateType.MODIFIED;
+            default:
+                return null;
+        }
+    }
+
+    private void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) throws IOException {
+        for (String fileAdded : status.getAdded()) {
+            updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
+        }
+
+        for (String fileChanged : status.getChanged()) {
+            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getRemoved()) {
+            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getMissing()) {
+            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getModified()) {
+            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getUntracked()) {
+            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getUntrackedFolders()) {
+            File untrackedFolder = new File(project.getPath() + "/" + fileChanged);
+            if (!isEmptyDir(untrackedFolder.toPath())) {
+                updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+            }
+        }
+
+        for (String fileChanged : status.getConflicting()) {
+            final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
+            update.setConflictingUpdate(true);
+            updates.add(update);
         }
     }
 
