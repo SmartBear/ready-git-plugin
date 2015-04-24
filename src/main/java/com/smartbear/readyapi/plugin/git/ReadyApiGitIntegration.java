@@ -196,7 +196,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         Iterator files = directoryStream.iterator();
         while (files.hasNext()) {
             Path path = (Path) files.next();
-            if (!path.toFile().isDirectory()){ // If there is any file other than only empty dirs then this is not an empty dir
+            if (!path.toFile().isDirectory()) { // If there is any file other than only empty dirs then this is not an empty dir
                 directoryStream.close();
                 return false;
             }
@@ -239,7 +239,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         list.add(MergeStrategy.THEIRS.getName());
 
         String strategy = UISupport.prompt("Pulling changes from the remote repository may result in conflicts.\n" +
-                "Please select which merge strategy to use to resolve any such conflicts.\n",
+                        "Please select which merge strategy to use to resolve any such conflicts.\n",
                 "Select Merge Strategy",
                 list.toArray(new String[list.size()]),
                 MergeStrategy.OURS.getName());
@@ -503,5 +503,13 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
+    }
+
+    public String getRemoteRepositoryUrl(WsdlProject project) {
+        try {
+            return createGitObject(project.getPath()).getRepository().getConfig().getString("remote", "origin", "url");
+        } catch (Exception ignore) {
+            return null;
+        }
     }
 }
