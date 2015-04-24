@@ -168,7 +168,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         final WsdlProject project = update.getProject();
         final Git git = createGitObject(project.getPath());
 
-        final boolean successfulUpdate = commitUpdates(vcsUpdates, commitMessage, git);
+        final boolean successfulUpdate = commitAndPushUpdates(vcsUpdates, commitMessage, git);
 
         CommitResult result = successfulUpdate ? new CommitResult(SUCCESSFUL, "Commit was successful") :
                 new CommitResult(FAILED, "Commit Failed");
@@ -222,14 +222,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void createTag(WsdlProject project, String tagName) {
         final Git git = createGitObject(project.getPath());
         try {
-            git.tag().setName(tagName).call();
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.push().setPushTags();
-                }
-            };
-            commandRetrier.execute();
+            gitCreateAndPushTag(tagName, git);
         } catch (RefAlreadyExistsException re) {
             logger.warn("Tag already exists: " + tagName);
             throw new IllegalArgumentException("Tag already exists: " + tagName);
@@ -281,7 +274,41 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         commandRetrier.execute();
     }
 
-    private Iterable<PushResult> doPushCommits(final Git git) {
+    private void gitCreateAndPushTag(String tagName, final Git git) throws GitAPIException {
+        git.tag().setName(tagName).call();
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.push().setPushTags();
+            }
+        };
+        commandRetrier.execute();
+    }
+
+
+    private boolean commitAndPushUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
+        addFilesToIndex(vcsUpdates, git);
+        try {
+            Iterable<PushResult> dryRunResult = getPushDryRun(commitMessage, git);
+            return pushCommit(git, isSuccessfulPush(dryRunResult));
+
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(e.getMessage(), e.getCause());
+        }
+    }
+
+    private Iterable<PushResult> getPushDryRun(String commitMessage, final Git git) throws GitAPIException {
+        git.commit().setMessage(commitMessage).call();
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.push().setDryRun(true);
+            }
+        };
+        return (Iterable<PushResult>) commandRetrier.execute();
+    }
+
+    private Iterable<PushResult> gitPush(final Git git) {
         CommandRetrier commandRetrier = new CommandRetrier(git) {
             @Override
             TransportCommand recreateCommand() {
@@ -291,23 +318,6 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return (Iterable<PushResult>) commandRetrier.execute();
     }
 
-    private boolean commitUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
-        addFilesToIndex(vcsUpdates, git);
-        try {
-            git.commit().setMessage(commitMessage).call();
-            CommandRetrier commandRetrier = new CommandRetrier(git) {
-                @Override
-                TransportCommand recreateCommand() {
-                    return git.push().setDryRun(true);
-                }
-            };
-            Iterable<PushResult> dryRunResult = (Iterable<PushResult>) commandRetrier.execute();
-            return pushCommit(git, isSuccessfulPush(dryRunResult));
-
-        } catch (GitAPIException e) {
-            throw new VcsIntegrationException(e.getMessage(), e.getCause());
-        }
-    }
 
     private void pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
         CommandRetrier retrier = new CommandRetrier(git) {
@@ -331,7 +341,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         Iterable<PushResult> results;
 
         if (isDryRunSuccessful) {
-            results = doPushCommits(git);
+            results = gitPush(git);
         } else {
             MergeStrategy mergeStrategy = promptForMergeStrategy();
             if (mergeStrategy == null) {
@@ -339,7 +349,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             }
 
             pullWithMergeStrategy(git, mergeStrategy);
-            results = doPushCommits(git);
+            results = gitPush(git);
         }
         return isSuccessfulPush(results);
 
