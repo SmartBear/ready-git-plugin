@@ -512,4 +512,12 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
     }
+
+    public String getRemoteRepositoryUrl(WsdlProject project) {
+        try {
+            return createGitObject(project.getPath()).getRepository().getConfig().getString("remote", "origin", "url");
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
 }

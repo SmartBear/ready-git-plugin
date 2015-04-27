@@ -23,8 +23,12 @@ public abstract class AbstractRepositorySelectionGui {
 
     private RepositoryForm selected;
 
-    protected Component createGui(String helpUrl, String helpText) {
+    protected Component createGui(String helpUrl, String helpText, String remoteRepositoryUrl) {
         JPanel panel = new JPanel(new MigLayout("wrap", "8[grow,fill]8", "8[][][grow,fill][]8"));
+
+        boolean httpUrl = isHttpUrl(remoteRepositoryUrl);
+        sshRepositoryForm = new SshRepositoryForm(httpUrl ? null : remoteRepositoryUrl, false);
+        httpsRepositoryForm = new HttpsRepositoryForm(httpUrl ? remoteRepositoryUrl : null, false);
 
         ButtonGroup group = new ButtonGroup();
 
@@ -36,8 +40,12 @@ public abstract class AbstractRepositorySelectionGui {
 
         panel.add(cards);
         panel.add(createLabelLink(helpUrl, helpText));
-        selectCard(LABEL_SSH);
+        selectCard(httpUrl ? LABEL_HTTPS : LABEL_SSH);
         return panel;
+    }
+
+    protected boolean isHttpUrl(String remoteRepositoryUrl){
+        return remoteRepositoryUrl != null && remoteRepositoryUrl.startsWith("http");
     }
 
     private JRadioButton createRadioButton(final String label, ButtonGroup group) {
