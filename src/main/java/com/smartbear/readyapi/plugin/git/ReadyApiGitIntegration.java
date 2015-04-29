@@ -43,7 +43,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     public static final int MAX_LOG_ENTRIES = 500;
     private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
-    private GitCommandHelper gCommandHelper  = new GitCommandHelper();
+    private GitCommandHelper gitCommandHelper = new GitCommandHelper();
 
     @Override
     public ActivationStatus activateFor(WsdlProject project) {
@@ -64,14 +64,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     public Collection<VcsUpdate> getRemoteRepositoryUpdates(File projectFile) {
         Collection<VcsUpdate> updates = new ArrayList<>();
         try {
-            final Git gitObject = gCommandHelper.createGitObject(projectFile.getPath());
+            final Git gitObject = gitCommandHelper.createGitObject(projectFile.getPath());
 
-            gCommandHelper.gitFetch(gitObject);
+            gitCommandHelper.gitFetch(gitObject);
 
             Repository repo = gitObject.getRepository();
             ObjectReader reader = repo.newObjectReader();
 
-            gCommandHelper.fillRemoteUpdates(updates, gitObject, repo, reader);
+            gitCommandHelper.fillRemoteUpdates(updates, gitObject, repo, reader);
             gitObject.getRepository().close();
         } catch (GitAPIException | IOException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
@@ -81,17 +81,17 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public Collection<VcsUpdate> getLocalRepositoryUpdates(WsdlProject project) {
-        final Git git = gCommandHelper.createGitObject(project.getPath());
+        final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
         Collection<VcsUpdate> updates = new ArrayList<>();
 
         try {
-            final Status status = git.status().call();
-            gCommandHelper.fillLocalUpdates(project, updates, status);
+            final Status status = gitObject.status().call();
+            gitCommandHelper.fillLocalUpdates(project, updates, status);
         } catch (GitAPIException | IOException e) {
             logger.error("Failed to read local changes", e);
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
-        git.getRepository().close();
+        gitObject.getRepository().close();
 
         return updates;
     }
@@ -104,19 +104,19 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public void updateFromRemoteRepository(File projectFile, boolean b) {
         try {
-            final Git gitObject = gCommandHelper.createGitObject(projectFile.getPath());
+            final Git gitObject = gitCommandHelper.createGitObject(projectFile.getPath());
 
             final Set<String> uncommittedChanges = gitObject.status().call().getUncommittedChanges();
             if (uncommittedChanges.size() > 0) {
                 UISupport.showErrorMessage("There are uncommitted changes, commit or revert back those changes before updating from remote repo");
                 return;
             }
-            MergeStrategy mergeStrategy = gCommandHelper.promptForMergeStrategy();
+            MergeStrategy mergeStrategy = gitCommandHelper.promptForMergeStrategy();
             if (mergeStrategy == null) {
                 return;
             }
 
-            gCommandHelper.pullWithMergeStrategy(gitObject, mergeStrategy);
+            gitCommandHelper.pullWithMergeStrategy(gitObject, mergeStrategy);
             gitObject.getRepository().close();
             UISupport.showInfoMessage("Remote changes were pulled successfully.");
         } catch (GitAPIException e) {
@@ -140,14 +140,14 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         }
 
         final WsdlProject project = update.getProject();
-        final Git git = gCommandHelper.createGitObject(project.getPath());
+        final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
 
-        final boolean successfulUpdate = gCommandHelper.commitAndPushUpdates(vcsUpdates, commitMessage, git);
+        final boolean successfulUpdate = gitCommandHelper.commitAndPushUpdates(vcsUpdates, commitMessage, gitObject);
 
         CommitResult result = successfulUpdate ? new CommitResult(SUCCESSFUL, "Commit was successful") :
                 new CommitResult(FAILED, "Commit Failed");
 
-        git.getRepository().close();
+        gitObject.getRepository().close();
 
         return result;
     }
@@ -163,7 +163,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
             update = vcsUpdates.iterator().next();
         }
 
-        final Git gitObject = gCommandHelper.createGitObject(update.getProject().getPath());
+        final Git gitObject = gitCommandHelper.createGitObject(update.getProject().getPath());
 
         for (VcsUpdate vcsUpdate : vcsUpdates) {
             try {
@@ -178,24 +178,24 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public Set<String> getAvailableTags(WsdlProject project) throws VcsIntegrationException {
         final List<Ref> refList;
-        final Git gitObject = gCommandHelper.createGitObject(project.getPath());
+        final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
 
         try {
-            gCommandHelper.gitFetch(gitObject);
+            gitCommandHelper.gitFetch(gitObject);
             refList = gitObject.tagList().call();
             gitObject.getRepository().close();
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
 
-        return gCommandHelper.getTagSetFromRefList(refList);
+        return gitCommandHelper.getTagSetFromRefList(refList);
     }
 
     @Override
     public void createTag(WsdlProject project, String tagName) {
-        final Git gitObject = gCommandHelper.createGitObject(project.getPath());
+        final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
         try {
-            gCommandHelper.gitCreateAndPushTag(tagName, gitObject);
+            gitCommandHelper.gitCreateAndPushTag(tagName, gitObject);
             gitObject.getRepository().close();
         } catch (RefAlreadyExistsException re) {
             logger.warn("Tag already exists: " + tagName);
@@ -213,7 +213,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public List<HistoryEntry> getProjectHistory(WsdlProject project) {
         List<HistoryEntry> historyEntries = new ArrayList<>();
-        Git gitObject = gCommandHelper.createGitObject(project.getPath());
+        Git gitObject = gitCommandHelper.createGitObject(project.getPath());
 
         try {
             Iterable<RevCommit> revCommits = gitObject.log().setMaxCount(MAX_LOG_ENTRIES).call();

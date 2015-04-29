@@ -93,7 +93,7 @@ public class GitCommandHelper {
     protected boolean commitAndPushUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
         addFilesToIndex(vcsUpdates, git);
         try {
-            Iterable<PushResult> dryRunResult = getPushDryRun(commitMessage, git);
+            Iterable<PushResult> dryRunResult = gitPushDryRun(commitMessage, git);
             return pushCommit(git, isSuccessfulPush(dryRunResult));
 
         } catch (GitAPIException e) {
@@ -101,7 +101,7 @@ public class GitCommandHelper {
         }
     }
 
-    protected Iterable<PushResult> getPushDryRun(String commitMessage, final Git git) throws GitAPIException {
+    protected Iterable<PushResult> gitPushDryRun(String commitMessage, final Git git) throws GitAPIException {
         git.commit().setMessage(commitMessage).call();
         CommandRetrier commandRetrier = new CommandRetrier(git) {
             @Override
