@@ -16,7 +16,9 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -46,7 +48,25 @@ public class GitCommandHelper {
     protected static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     protected static final String HEAD_TREE = "HEAD^{tree}";
 
-    public GitCommandHelper() {
+    public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
+        Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
+    }
+
+    public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
+        try {
+            initLocalRepository(project, repositoryPath);
+            GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
+        } catch (GitAPIException | IOException e) {
+            throw new VcsIntegrationException("Failed to share project", e);
+        }
+    }
+
+    public String getRemoteRepositoryUrl(WsdlProject project) {
+        try {
+            return createGitObject(project.getPath()).getRepository().getConfig().getString("remote", "origin", "url");
+        } catch (Exception ignore) {
+            return null;
+        }
     }
 
     protected void gitFetch(final Git git) {
@@ -136,7 +156,6 @@ public class GitCommandHelper {
             results = gitPush(git);
         }
         return isSuccessfulPush(results);
-
     }
 
     protected Git createGitObject(final String localPath) {
@@ -293,5 +312,17 @@ public class GitCommandHelper {
             updates.add(update);
         }
     }
+
+    private Git initLocalRepository(WsdlProject project, String repositoryPath) throws GitAPIException, IOException {
+        Git git = Git.init().setDirectory(new File(project.getPath())).call();
+
+        StoredConfig config = git.getRepository().getConfig();
+        config.setString("remote", "origin", "url", repositoryPath);
+        config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
+        config.save();
+
+        return git;
+    }
+
 
 }

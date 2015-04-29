@@ -23,10 +23,8 @@ import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.transport.CredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +43,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     public static final int MAX_LOG_ENTRIES = 500;
     private final static Logger logger = LoggerFactory.getLogger(ReadyApiGitIntegration.class);
-    private final GitCommandHelper gCommandHelper  = new GitCommandHelper();
+    private GitCommandHelper gCommandHelper  = new GitCommandHelper();
 
     @Override
     public ActivationStatus activateFor(WsdlProject project) {
@@ -54,12 +52,12 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
     @Override
     public RepositorySelectionGui buildRepositorySelectionGui(WsdlProject project) {
-        return new GitRepositorySelectionGui(project, this);
+        return new GitRepositorySelectionGui(project);
     }
 
     @Override
     public ImportProjectFromVcsGui buildRepositoryDownloadGui(Workspace workspace) {
-        return new ImportProjectFromGitGui(this);
+        return new ImportProjectFromGitGui();
     }
 
     @Override
@@ -232,35 +230,4 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return historyEntries;
     }
 
-    public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
-        Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
-    }
-
-    public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
-        try {
-            initLocalRepository(project, repositoryPath);
-            GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
-        } catch (GitAPIException | IOException e) {
-            throw new VcsIntegrationException("Failed to share project", e);
-        }
-    }
-
-    public String getRemoteRepositoryUrl(WsdlProject project) {
-        try {
-            return gCommandHelper.createGitObject(project.getPath()).getRepository().getConfig().getString("remote", "origin", "url");
-        } catch (Exception ignore) {
-            return null;
-        }
-    }
-
-    private Git initLocalRepository(WsdlProject project, String repositoryPath) throws GitAPIException, IOException {
-        Git git = Git.init().setDirectory(new File(project.getPath())).call();
-
-        StoredConfig config = git.getRepository().getConfig();
-        config.setString("remote", "origin", "url", repositoryPath);
-        config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
-        config.save();
-
-        return git;
-    }
 }

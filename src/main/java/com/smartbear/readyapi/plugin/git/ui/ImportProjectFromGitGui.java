@@ -3,7 +3,7 @@ package com.smartbear.readyapi.plugin.git.ui;
 import com.eviware.soapui.plugins.vcs.ImportProjectFromVcsGui;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsRepositoryInfo;
-import com.smartbear.readyapi.plugin.git.ReadyApiGitIntegration;
+import com.smartbear.readyapi.plugin.git.GitCommandHelper;
 
 import java.awt.Component;
 import java.io.File;
@@ -11,10 +11,10 @@ import java.io.File;
 import static com.smartbear.readyapi.plugin.git.ui.help.HelpUrls.GIT_PLUGIN_WIKI;
 
 public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui implements ImportProjectFromVcsGui {
-    private ReadyApiGitIntegration readyApiGitIntegration;
+    private GitCommandHelper gitCommandHelper;
 
-    public ImportProjectFromGitGui(ReadyApiGitIntegration readyApiGitIntegration) {
-        this.readyApiGitIntegration = readyApiGitIntegration;
+    public ImportProjectFromGitGui( ) {
+        this.gitCommandHelper = new GitCommandHelper();
     }
 
     @Override
@@ -25,7 +25,7 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
     @Override
     public VcsRepositoryInfo downloadProjectFiles(File emptyDirectory) {
         try {
-            readyApiGitIntegration.cloneRepository(getSelected().getRepositoryPath(), getSelected().getCredentialsProvider(), emptyDirectory);
+            gitCommandHelper.cloneRepository(getSelected().getRepositoryPath(), getSelected().getCredentialsProvider(), emptyDirectory);
             return new VcsRepositoryInfo("Git", getSelected().getRepositoryPath());
         } catch (Exception e) {
             throw new VcsIntegrationException("Failed to clone remote repository", e);
