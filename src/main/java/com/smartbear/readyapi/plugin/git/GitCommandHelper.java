@@ -207,6 +207,44 @@ public class GitCommandHelper {
         }
     }
 
+    protected void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) throws IOException {
+        for (String fileAdded : status.getAdded()) {
+            updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
+        }
+
+        for (String fileChanged : status.getChanged()) {
+            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getRemoved()) {
+            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getMissing()) {
+            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getModified()) {
+            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getUntracked()) {
+            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+        }
+
+        for (String fileChanged : status.getUntrackedFolders()) {
+            File untrackedFolder = new File(project.getPath() + "/" + fileChanged);
+            if (!isEmptyDir(untrackedFolder.toPath())) {
+                updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
+            }
+        }
+
+        for (String fileChanged : status.getConflicting()) {
+            final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
+            update.setConflictingUpdate(true);
+            updates.add(update);
+        }
+    }
 
     private boolean isEmptyDir(Path dir) throws IOException {
         DirectoryStream<Path> directoryStream = Files.newDirectoryStream(dir);
@@ -271,45 +309,6 @@ public class GitCommandHelper {
                 return VcsUpdate.VcsUpdateType.MODIFIED;
             default:
                 return null;
-        }
-    }
-
-    protected void fillLocalUpdates(WsdlProject project, Collection<VcsUpdate> updates, Status status) throws IOException {
-        for (String fileAdded : status.getAdded()) {
-            updates.add(new VcsUpdate(project, ADDED, fileAdded, fileAdded));
-        }
-
-        for (String fileChanged : status.getChanged()) {
-            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getRemoved()) {
-            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getMissing()) {
-            updates.add(new VcsUpdate(project, DELETED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getModified()) {
-            updates.add(new VcsUpdate(project, MODIFIED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getUntracked()) {
-            updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
-        }
-
-        for (String fileChanged : status.getUntrackedFolders()) {
-            File untrackedFolder = new File(project.getPath() + "/" + fileChanged);
-            if (!isEmptyDir(untrackedFolder.toPath())) {
-                updates.add(new VcsUpdate(project, ADDED, fileChanged, fileChanged));
-            }
-        }
-
-        for (String fileChanged : status.getConflicting()) {
-            final VcsUpdate update = new VcsUpdate(project, MODIFIED, fileChanged, fileChanged);
-            update.setConflictingUpdate(true);
-            updates.add(update);
         }
     }
 
