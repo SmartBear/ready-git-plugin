@@ -248,18 +248,19 @@ public class GitCommandHelper {
 
     private boolean isEmptyDir(Path dir) throws IOException {
         DirectoryStream<Path> directoryStream = Files.newDirectoryStream(dir);
+        try {
+            Iterator files = directoryStream.iterator();
 
-        Iterator files = directoryStream.iterator();
-        while (files.hasNext()) {
-            Path path = (Path) files.next();
-            if (!path.toFile().isDirectory()){ // If there is any file other than only empty dirs then this is not an empty dir
-                directoryStream.close();
-                return false;
+            while (files.hasNext()) {
+                Path path = (Path) files.next();
+                if (!path.toFile().isDirectory()) { // If there is any file other than only empty dirs then this is not an empty dir
+                    return false;
+                }
             }
+            return true;
+        } finally {
+            directoryStream.close();
         }
-
-        directoryStream.close();
-        return true;
     }
 
     private boolean isSuccessfulPush(Iterable<PushResult> resultIterable) {
