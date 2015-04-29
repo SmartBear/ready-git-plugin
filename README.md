@@ -1,24 +1,5 @@
-# ready-git-plugin
-The Git integration plugin for Ready! API
+Use the Ready! API Git plugin to share composite projects.
 
+For information on the plugin, see the plugin's Wiki:
 
-
-# Download & Install
-The plugin will actually ship with Ready! API from version 1.3 as an unsupported plugin. If you want to download newer versions of the plugins they are available from the Plugin Manager.
-
-# Build it yourself
-
-
-# Features
-
-
-# Release History
-
-Version 1.0 - 2015-04-28
-Initial version
-
-# Feedback
-
-Comments here are welcome!
-
-Thanks!
+https://github.com/SmartBear/ready-git-plugin/wiki
