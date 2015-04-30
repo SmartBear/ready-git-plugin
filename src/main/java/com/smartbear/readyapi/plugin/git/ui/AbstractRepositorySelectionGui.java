@@ -13,7 +13,7 @@ import java.awt.event.ActionListener;
 import static com.eviware.soapui.support.UISupport.createLabelLink;
 
 public abstract class AbstractRepositorySelectionGui {
-    public static final String LABEL_HTTPS = "Https";
+    public static final String LABEL_HTTPS = "HTTPS";
     public static final String LABEL_SSH = "SSH";
 
     private RepositoryForm sshRepositoryForm = new SshRepositoryForm();
