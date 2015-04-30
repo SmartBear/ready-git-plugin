@@ -19,6 +19,6 @@ public class GitRepositorySelectionGuiTest extends SwingTest {
     public void showDialog() throws Exception {
         WsdlProject project = Mockito.mock(WsdlProject.class);
         when(project.getPath()).thenReturn("/tmp/apan");
-        embedInFrameAndShow(new GitRepositorySelectionGui(project, null).getComponent());
+        embedInFrameAndShow(new GitRepositorySelectionGui(project).getComponent());
     }
 }
