@@ -4,7 +4,6 @@ import com.eviware.soapui.SoapUI;
 import com.eviware.soapui.settings.DESCipher;
 import com.eviware.soapui.support.types.StringList;
 import org.eclipse.jgit.transport.CredentialsProvider;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +54,7 @@ public class GitCredentialProviderCache {
                 String userNameOrKeyPath = DESCipher.decrypt(values[1]);
                 String password = DESCipher.decrypt(values[2]);
                 if (repoUrl.startsWith("http")) {
-                    addCredentialProvider(new UsernamePasswordCredentialsProvider(userNameOrKeyPath, password), repoUrl);
+                    addCredentialProvider(new DefaultCredentialsProvider(userNameOrKeyPath, password), repoUrl);
                 } else {
                     addCredentialProvider(new SshPassphraseCredentialsProvider(password, userNameOrKeyPath), repoUrl);
                 }
