@@ -116,9 +116,15 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 return;
             }
 
-            gitCommandHelper.pullWithMergeStrategy(gitObject, mergeStrategy);
+            final boolean successfulPull = gitCommandHelper.pullWithMergeStrategy(gitObject, mergeStrategy);
             gitObject.getRepository().close();
-            UISupport.showInfoMessage("Remote changes were pulled successfully.");
+
+            if (successfulPull) {
+                UISupport.showInfoMessage("Remote changes were pulled successfully.");
+            } else {
+                UISupport.showErrorMessage("Failed to pull remote changes.");
+            }
+
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
         }
