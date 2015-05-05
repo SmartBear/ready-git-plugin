@@ -144,17 +144,15 @@ public class GitCommandHelper {
     protected boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
 
-        if (isDryRunSuccessful) {
-            results = gitPush(git);
-        } else {
+        if (!isDryRunSuccessful) {
             MergeStrategy mergeStrategy = promptForMergeStrategy();
             if (mergeStrategy == null) {
                 return false;
             }
 
             pullWithMergeStrategy(git, mergeStrategy);
-            results = gitPush(git);
         }
+        results = gitPush(git);
         return isSuccessfulPush(results);
     }
 
