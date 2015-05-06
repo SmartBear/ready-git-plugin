@@ -5,7 +5,6 @@ import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
@@ -123,7 +122,7 @@ public class GitCommandHelper {
     }
 
 
-    protected void pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
+    protected boolean pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
         CommandRetrier retrier = new CommandRetrier(git) {
             @Override
             TransportCommand recreateCommand() {
@@ -133,28 +132,19 @@ public class GitCommandHelper {
 
         PullResult pullResult = (PullResult) retrier.execute();
 
-        MergeResult.MergeStatus mergeStatus = pullResult.getMergeResult().getMergeStatus();
-        if (mergeStatus.equals(MergeResult.MergeStatus.FAILED)) {
-            UISupport.showErrorMessage("Failed to pull the changes from remote repository.");
-        } else if (mergeStatus.equals(MergeResult.MergeStatus.CONFLICTING)) {
-            UISupport.showErrorMessage("Update has resulted in merge conflicts, please resolve conflicts manually.");
-        }
+        return pullResult.getMergeResult().getMergeStatus().isSuccessful();
     }
 
     protected boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
 
-        if (isDryRunSuccessful) {
-            results = gitPush(git);
-        } else {
+        if (!isDryRunSuccessful) {
             MergeStrategy mergeStrategy = promptForMergeStrategy();
-            if (mergeStrategy == null) {
+            if (mergeStrategy == null || !pullWithMergeStrategy(git, mergeStrategy)) {
                 return false;
             }
-
-            pullWithMergeStrategy(git, mergeStrategy);
-            results = gitPush(git);
         }
+        results = gitPush(git);
         return isSuccessfulPush(results);
     }
 
