@@ -279,8 +279,11 @@ public class GitCommandHelper {
     private void addFilesToIndex(Collection<VcsUpdate> vcsUpdates, Git git) {
         for (VcsUpdate vcsUpdate : vcsUpdates) {
             try {
-                git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
-
+                if (vcsUpdate.getType() == VcsUpdate.VcsUpdateType.DELETED){
+                    git.rm().addFilepattern(vcsUpdate.getRelativePath()).call();
+                } else {
+                    git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
+                }
             } catch (GitAPIException e) {
                 throw new VcsIntegrationException(e.getMessage(), e.getCause());
             }
