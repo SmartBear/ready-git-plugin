@@ -91,7 +91,8 @@ abstract class CommandRetrier {
                 && (e.getMessage().contains("not authorized")
                 || e.getMessage().contains("Auth fail")
                 || e.getMessage().contains("USERAUTH fail")
-                || e.getMessage().contains("no CredentialsProvider has been registered"));
+                || e.getMessage().contains("no CredentialsProvider has been registered")
+                || e.getMessage().contains("Authorization Required"));
     }
 
     private Method getMethodSetCredentialsProvider(Object command) throws NoSuchMethodException {
