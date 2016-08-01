@@ -32,14 +32,17 @@ public abstract class AbstractRepositorySelectionGui {
 
         ButtonGroup group = new ButtonGroup();
 
-        panel.add(createRadioButton(LABEL_SSH, group));
-        panel.add(createRadioButton(LABEL_HTTPS, group));
+        JRadioButton sshRadioButton = createRadioButton(LABEL_SSH, group);
+        panel.add(sshRadioButton);
+        JRadioButton httpsRadioButton = createRadioButton(LABEL_HTTPS, group);
+        panel.add(httpsRadioButton);
 
         cards.add(sshRepositoryForm.getComponent(), LABEL_SSH);
         cards.add(httpsRepositoryForm.getComponent(), LABEL_HTTPS);
 
         panel.add(cards);
         panel.add(createLabelLink(helpUrl, helpText));
+        (httpUrl ? httpsRadioButton : sshRadioButton).setSelected(true);
         selectCard(httpUrl ? LABEL_HTTPS : LABEL_SSH);
         return panel;
     }
