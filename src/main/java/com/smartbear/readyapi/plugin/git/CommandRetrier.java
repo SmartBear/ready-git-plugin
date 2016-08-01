@@ -1,5 +1,7 @@
 package com.smartbear.readyapi.plugin.git;
 
+import com.eviware.soapui.SoapUI;
+import com.eviware.soapui.impl.wsdl.support.http.ProxyUtils;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.support.UISupport;
 import com.jcraft.jsch.JSch;
@@ -17,6 +19,7 @@ import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.util.FS;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -31,6 +34,7 @@ abstract class CommandRetrier {
     abstract TransportCommand recreateCommand();
 
     public Object execute() throws VcsIntegrationException {
+        resetGlobalAuthenticator();
         TransportCommand command = recreateCommand();
         setCredentialsProviderFromCache(command);
 
@@ -61,6 +65,21 @@ abstract class CommandRetrier {
             }
         } catch (Exception e) {
             throw new VcsIntegrationException(e.getMessage(), e);
+        }
+    }
+
+    private void resetGlobalAuthenticator() {
+        try {
+            Field f = java.net.Authenticator.class.getDeclaredField("theAuthenticator");
+            f.setAccessible(true);
+            Object authenticator = f.get(null);
+            if (authenticator != null &&
+                    "com.install4j.runtime.installer.helper.content.HttpAuthenticator".equals(authenticator.getClass().getName())) {
+                // Reset global Authenticator, which the install4j update check messed up
+                ProxyUtils.setGlobalProxy(SoapUI.getSettings());
+            }
+            f.setAccessible(false);
+        } catch (Exception ignore) {
         }
     }
 
