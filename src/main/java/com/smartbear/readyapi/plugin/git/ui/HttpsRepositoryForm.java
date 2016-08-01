@@ -30,7 +30,7 @@ public class HttpsRepositoryForm implements RepositoryForm {
 
     @Override
     public String getRepositoryPath() {
-        return repositoryUrlField.getText();
+        return repositoryUrlField.getText().trim();
     }
 
     @Override
