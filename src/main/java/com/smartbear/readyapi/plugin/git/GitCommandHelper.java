@@ -51,7 +51,7 @@ public class GitCommandHelper {
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         CloneCommand cloneCommand = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory);
         if (credentialsProvider instanceof SshPassphraseCredentialsProvider) {
-            cloneCommand.setTransportConfigCallback(new CommandRetrier.SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider)).call();
+            cloneCommand.setTransportConfigCallback(new CommandRetrier.SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
         }
         cloneCommand.call();
         GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
