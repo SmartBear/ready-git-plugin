@@ -94,7 +94,7 @@ abstract class CommandRetrier {
     }
 
     private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) {
-        if (isSshAuthentication()) {
+        if (credentialsProvider instanceof SshPassphraseCredentialsProvider) {
             command.setTransportConfigCallback(new SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
         }
         command.setCredentialsProvider(credentialsProvider);
