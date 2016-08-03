@@ -23,8 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 abstract class CommandRetrier {
 
@@ -38,27 +36,25 @@ abstract class CommandRetrier {
 
     abstract TransportCommand recreateCommand();
 
-    public Object execute() throws VcsIntegrationException {
+    Object execute() throws VcsIntegrationException {
         resetGlobalAuthenticator();
         TransportCommand command = recreateCommand();
 
         try {
             setCredentialsProviderFromCache(command);
-            Method call = getMethodCall(command);
             if (isSshAuthentication()) {
                 CredentialsProvider credentialsProvider = askForCredentialsIfNotInCache();
                 setCredentialsProvider(command, credentialsProvider);
             }
-            return call.invoke(command);
-        } catch (InvocationTargetException e) {
+            return command.call();
+        } catch (Exception e) {
             if (shouldRetry(e.getCause())) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL());
                 if (credentialsProvider != null) {
                     command = recreateCommand();
                     try {
                         setCredentialsProvider(command, credentialsProvider);
-                        Method call = getMethodCall(command);
-                        return call.invoke(command);
+                        return command.call();
                     } catch (Exception e1) {
                         throw new VcsIntegrationException(e.getMessage(), e);
                     }
@@ -68,11 +64,12 @@ abstract class CommandRetrier {
             } else {
                 throw new VcsIntegrationException(e.getMessage(), e);
             }
-        } catch (Exception e) {
-            throw new VcsIntegrationException(e.getMessage(), e);
         }
     }
 
+    /**
+     * Required to work with Ready! API versions before 1.9
+     */
     private void resetGlobalAuthenticator() {
         try {
             Field f = java.net.Authenticator.class.getDeclaredField("theAuthenticator");
@@ -96,12 +93,11 @@ abstract class CommandRetrier {
         return credentialsProvider;
     }
 
-    private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) throws Exception {
+    private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) {
         if (isSshAuthentication()) {
             command.setTransportConfigCallback(new SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
         }
-        Method setCredentialsProvider = getMethodSetCredentialsProvider(command);
-        setCredentialsProvider.invoke(command, credentialsProvider);
+        command.setCredentialsProvider(credentialsProvider);
     }
 
     private boolean isSshAuthentication() {
@@ -118,15 +114,7 @@ abstract class CommandRetrier {
                 || e.getMessage().contains("Authorization Required"));
     }
 
-    private Method getMethodSetCredentialsProvider(Object command) throws NoSuchMethodException {
-        return command.getClass().getMethod("setCredentialsProvider", new Class[]{CredentialsProvider.class});
-    }
-
-    private Method getMethodCall(Object command) throws NoSuchMethodException {
-        return command.getClass().getMethod("call", new Class[]{});
-    }
-
-    private void setCredentialsProviderFromCache(TransportCommand transportCommand) throws Exception {
+    private void setCredentialsProviderFromCache(TransportCommand transportCommand) {
         String remoteRepoURL = getRemoteRepoURL();
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.instance().getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider != null) {
