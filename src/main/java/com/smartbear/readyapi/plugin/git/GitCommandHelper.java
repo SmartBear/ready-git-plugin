@@ -48,7 +48,7 @@ public class GitCommandHelper {
     protected static final String HEAD_TREE = "HEAD^{tree}";
 
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
-        Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
+        Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).setTransportConfigCallback(new CommandRetrier.SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider)).call();
     }
 
     public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
