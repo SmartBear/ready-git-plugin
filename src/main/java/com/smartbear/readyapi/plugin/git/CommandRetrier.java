@@ -48,7 +48,7 @@ abstract class CommandRetrier {
             }
             return command.call();
         } catch (Exception e) {
-            if (shouldRetry(e.getCause())) {
+            if (shouldRetry(e)) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL());
                 if (credentialsProvider != null) {
                     command = recreateCommand();
