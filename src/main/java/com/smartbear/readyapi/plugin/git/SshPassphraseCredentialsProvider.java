@@ -1,5 +1,6 @@
 package com.smartbear.readyapi.plugin.git;
 
+import com.eviware.soapui.support.UISupport;
 import org.eclipse.jgit.errors.UnsupportedCredentialItem;
 import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
@@ -23,7 +24,6 @@ public class SshPassphraseCredentialsProvider extends CredentialsProvider implem
     }
 
     /**
-     *
      * @return private key path as username
      */
     @Override
@@ -45,7 +45,13 @@ public class SshPassphraseCredentialsProvider extends CredentialsProvider implem
     @Override
     public boolean get(URIish uri, CredentialItem... items) throws UnsupportedCredentialItem {
         for (CredentialItem item : items) {
-            ((CredentialItem.StringType) item).setValue(passphrase);
+            if (item instanceof CredentialItem.StringType) {
+                ((CredentialItem.StringType) item).setValue(passphrase);
+            } else if (item instanceof CredentialItem.Password) {
+                ((CredentialItem.Password) item).setValue(passphrase.toCharArray());
+            } else if (item instanceof CredentialItem.YesNoType) {
+                ((CredentialItem.YesNoType) item).setValue(UISupport.confirm(item.getPromptText(), "SSH connection"));
+            }
         }
         return true;
     }

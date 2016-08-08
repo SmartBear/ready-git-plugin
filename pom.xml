@@ -6,7 +6,7 @@
 
     <groupId>com.smartbear</groupId>
     <artifactId>ready-api-git-plugin</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
     <dependencies>
         <dependency>
             <groupId>com.smartbear</groupId>
@@ -17,7 +17,8 @@
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
-            <version>3.7.0.201502260915-r</version>
+            <!-- When upgrading jgit please check that the known_hosts hack works in CommandRetrier.DefaultJschConfigSessionFactory.getJSch for the case when no known_hosts file exists on the machine. -->
+            <version>4.4.1.201607150455-r</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>

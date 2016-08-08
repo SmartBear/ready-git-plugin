@@ -1,9 +1,12 @@
 package com.smartbear.readyapi.plugin.git;
 
+import com.eviware.soapui.SoapUI;
+import com.eviware.soapui.impl.wsdl.support.http.ProxyUtils;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.support.UISupport;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.KnownHosts;
 import com.jcraft.jsch.Session;
 import com.smartbear.readyapi.plugin.git.ui.GitAuthenticationDialog;
 import org.eclipse.jgit.api.Git;
@@ -16,11 +19,14 @@ import org.eclipse.jgit.transport.OpenSshConfig;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.util.FS;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 
 abstract class CommandRetrier {
+
+    private final static Logger logger = LoggerFactory.getLogger(CommandRetrier.class);
 
     private Git git;
 
@@ -30,26 +36,25 @@ abstract class CommandRetrier {
 
     abstract TransportCommand recreateCommand();
 
-    public Object execute() throws VcsIntegrationException {
+    Object execute() throws VcsIntegrationException {
+        resetGlobalAuthenticator();
         TransportCommand command = recreateCommand();
-        setCredentialsProviderFromCache(command);
 
         try {
-            Method call = getMethodCall(command);
-            if (isSshAuthentication() && SshKeyFiles.privateKeyHasAPassPhrase()) {
+            setCredentialsProviderFromCache(command);
+            if (isSshAuthentication()) {
                 CredentialsProvider credentialsProvider = askForCredentialsIfNotInCache();
                 setCredentialsProvider(command, credentialsProvider);
             }
-            return call.invoke(command);
-        } catch (InvocationTargetException e) {
-            if (shouldRetry(e.getCause())) {
+            return command.call();
+        } catch (Exception e) {
+            if (shouldRetry(e)) {
                 CredentialsProvider credentialsProvider = askForCredentials(getRemoteRepoURL());
                 if (credentialsProvider != null) {
                     command = recreateCommand();
                     try {
                         setCredentialsProvider(command, credentialsProvider);
-                        Method call = getMethodCall(command);
-                        return call.invoke(command);
+                        return command.call();
                     } catch (Exception e1) {
                         throw new VcsIntegrationException(e.getMessage(), e);
                     }
@@ -59,8 +64,24 @@ abstract class CommandRetrier {
             } else {
                 throw new VcsIntegrationException(e.getMessage(), e);
             }
-        } catch (Exception e) {
-            throw new VcsIntegrationException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Required to work with Ready! API versions before 1.9
+     */
+    private void resetGlobalAuthenticator() {
+        try {
+            Field f = java.net.Authenticator.class.getDeclaredField("theAuthenticator");
+            f.setAccessible(true);
+            Object authenticator = f.get(null);
+            if (authenticator != null &&
+                    "com.install4j.runtime.installer.helper.content.HttpAuthenticator".equals(authenticator.getClass().getName())) {
+                // Reset global Authenticator, which the install4j update check messed up
+                ProxyUtils.setGlobalProxy(SoapUI.getSettings());
+            }
+            f.setAccessible(false);
+        } catch (Exception ignore) {
         }
     }
 
@@ -72,13 +93,11 @@ abstract class CommandRetrier {
         return credentialsProvider;
     }
 
-    private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) throws Exception {
-        if (isSshAuthentication()) {
+    private void setCredentialsProvider(TransportCommand command, CredentialsProvider credentialsProvider) {
+        if (credentialsProvider instanceof SshPassphraseCredentialsProvider) {
             command.setTransportConfigCallback(new SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
-        } else {
-            Method setCredentialsProvider = getMethodSetCredentialsProvider(command);
-            setCredentialsProvider.invoke(command, credentialsProvider);
         }
+        command.setCredentialsProvider(credentialsProvider);
     }
 
     private boolean isSshAuthentication() {
@@ -95,19 +114,11 @@ abstract class CommandRetrier {
                 || e.getMessage().contains("Authorization Required"));
     }
 
-    private Method getMethodSetCredentialsProvider(Object command) throws NoSuchMethodException {
-        return command.getClass().getMethod("setCredentialsProvider", new Class[]{CredentialsProvider.class});
-    }
-
-    private Method getMethodCall(Object command) throws NoSuchMethodException {
-        return command.getClass().getMethod("call", new Class[]{});
-    }
-
     private void setCredentialsProviderFromCache(TransportCommand transportCommand) {
         String remoteRepoURL = getRemoteRepoURL();
         CredentialsProvider credentialsProvider = GitCredentialProviderCache.instance().getCredentialsProvider(remoteRepoURL);
         if (credentialsProvider != null) {
-            transportCommand.setCredentialsProvider(credentialsProvider);
+            setCredentialsProvider(transportCommand, credentialsProvider);
         }
     }
 
@@ -135,19 +146,30 @@ abstract class CommandRetrier {
 
         @Override
         protected void configure(OpenSshConfig.Host hc, Session session) {
+            session.setPassword(credentialsProvider.getPassword());
         }
 
         @Override
         protected JSch getJSch(OpenSshConfig.Host hc, FS fs) throws JSchException {
             JSch jsch = super.getJSch(hc, fs);
             jsch.removeAllIdentity();
-
             jsch.addIdentity(credentialsProvider.getPrivateKeyPath(), credentialsProvider.getPassword());
+            try {
+                // Hack for for the case when no known_hosts file exists on the machine. Using the public setter will
+                // throw FileNotFoundException since the file doesn't exists yet, but the later code has functionality to create it.
+                KnownHosts knownHosts = (KnownHosts) jsch.getHostKeyRepository();
+                Field field = knownHosts.getClass().getDeclaredField("known_hosts");
+                field.setAccessible(true);
+                field.set(knownHosts, "~/.ssh/known_hosts");
+                field.setAccessible(false);
+            } catch (Exception e) {
+                logger.warn("Unable to set known_hosts file", e);
+            }
             return jsch;
         }
     }
 
-    private static class SshTransportConfigCallback implements TransportConfigCallback {
+    static class SshTransportConfigCallback implements TransportConfigCallback {
         private final SshPassphraseCredentialsProvider credentialsProvider;
 
         public SshTransportConfigCallback(SshPassphraseCredentialsProvider credentialsProvider) {

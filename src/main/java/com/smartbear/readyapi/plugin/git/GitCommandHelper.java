@@ -4,6 +4,7 @@ import com.eviware.soapui.impl.wsdl.WsdlProject;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
+import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
@@ -48,7 +49,12 @@ public class GitCommandHelper {
     protected static final String HEAD_TREE = "HEAD^{tree}";
 
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
-        Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory).call();
+        CloneCommand cloneCommand = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory);
+        if (credentialsProvider instanceof SshPassphraseCredentialsProvider) {
+            cloneCommand.setTransportConfigCallback(new CommandRetrier.SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
+        }
+        cloneCommand.call().close();
+        GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
     }
 
     public void shareProject(WsdlProject project, String repositoryPath, CredentialsProvider credentialsProvider) {
@@ -169,7 +175,7 @@ public class GitCommandHelper {
         list.add(MergeStrategy.THEIRS.getName());
 
         String strategy = UISupport.prompt("Pulling changes from the remote repository may result in conflicts.\n" +
-                "Please select which merge strategy to use to resolve any such conflicts.\n",
+                        "Please select which merge strategy to use to resolve any such conflicts.\n",
                 "Select Merge Strategy",
                 list.toArray(new String[list.size()]),
                 MergeStrategy.OURS.getName());
@@ -279,7 +285,7 @@ public class GitCommandHelper {
     private void addFilesToIndex(Collection<VcsUpdate> vcsUpdates, Git git) {
         for (VcsUpdate vcsUpdate : vcsUpdates) {
             try {
-                if (vcsUpdate.getType() == VcsUpdate.VcsUpdateType.DELETED){
+                if (vcsUpdate.getType() == VcsUpdate.VcsUpdateType.DELETED) {
                     git.rm().addFilepattern(vcsUpdate.getRelativePath()).call();
                 } else {
                     git.add().addFilepattern(vcsUpdate.getRelativePath()).call();
