@@ -4,6 +4,7 @@ import com.eviware.soapui.impl.wsdl.WsdlProject;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
+import com.smartbear.readyapi.plugin.git.ui.ConfirmMergeDialog;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PullResult;
@@ -11,13 +12,18 @@ import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.Sequence;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.merge.MergeResult;
 import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.merge.Merger;
+import org.eclipse.jgit.merge.RecursiveMerger;
+import org.eclipse.jgit.merge.StrategyOneSided;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
@@ -35,6 +41,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.ADDED;
@@ -129,6 +136,10 @@ public class GitCommandHelper {
 
 
     protected boolean pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
+        if (!canMerge(git, mergeStrategy)) {
+            return false;
+        }
+
         CommandRetrier retrier = new CommandRetrier(git) {
             @Override
             TransportCommand recreateCommand() {
@@ -140,6 +151,7 @@ public class GitCommandHelper {
 
         return pullResult.getMergeResult().getMergeStatus().isSuccessful();
     }
+
 
     protected boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
@@ -173,6 +185,7 @@ public class GitCommandHelper {
         List<String> list = new ArrayList<>();
         list.add(MergeStrategy.OURS.getName());
         list.add(MergeStrategy.THEIRS.getName());
+        list.add(MergeStrategy.RECURSIVE.getName());
 
         String strategy = UISupport.prompt("Pulling changes from the remote repository may result in conflicts.\n" +
                         "Please select which merge strategy to use to resolve any such conflicts.\n",
@@ -323,5 +336,38 @@ public class GitCommandHelper {
         return git;
     }
 
+    private boolean canMerge(final Git git, final MergeStrategy mergeStrategy) {
+        if (mergeStrategy instanceof StrategyOneSided) {
+            return true;
+        }
 
+        gitFetch(git);
+
+        try {
+            Repository repository = git.getRepository();
+            String branchName = repository.getFullBranch().substring("refs/heads/".length());
+            ObjectId from = repository.resolve("refs/remotes/origin/" + branchName);
+            ObjectId to = repository.resolve("refs/heads/" + branchName);
+            Merger merger = mergeStrategy.newMerger(repository, true);
+            if (!merger.merge(to, from)) {
+                Map<String, MergeResult<? extends Sequence>> mergeResults = ((RecursiveMerger) merger).getMergeResults();
+                List<String> conflictFiles = new ArrayList<>();
+                for (String filePath : mergeResults.keySet()) {
+                    if (mergeResults.get(filePath).containsConflicts()) {
+                        conflictFiles.add(filePath);
+                    }
+                }
+                if (!conflictFiles.isEmpty()) {
+                    ConfirmMergeDialog confirmMergeDialog = new ConfirmMergeDialog(conflictFiles);
+                    UISupport.showDialog(confirmMergeDialog);
+                    return confirmMergeDialog.allowMerge();
+                }
+            }
+        } catch (IOException exception) {
+            logger.error(exception.getMessage(), exception);
+            return false;
+        }
+
+        return true;
+    }
 }
