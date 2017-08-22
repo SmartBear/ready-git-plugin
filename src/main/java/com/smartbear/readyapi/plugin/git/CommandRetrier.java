@@ -26,11 +26,6 @@ abstract class CommandRetrier {
 
     private final static Logger logger = LoggerFactory.getLogger(CommandRetrier.class);
 
-    private static final String INSTALL4J_AUTHENTICATOR_CLASS = "com.install4j.runtime.installer.helper.content.HttpAuthenticator";
-    private static final String READY_API_PROXY_AND_SERVER_AUTHENTICATOR_CLASS = "com.eviware.soapui.impl.wsdl.support.http.ProxySettingsAndServerAuthenticator";
-    private static final String IS_SERVER_REQUESTOR_ENABLED_METHOD = "isServerRequestorEnabled";
-    private static final String ENABLE_SERVER_REQUESTOR_METHOD = "enableServerRequestor";
-    private static final String THE_AUTHENTICATOR_FIELD = "theAuthenticator";
     private Git git;
 
     protected CommandRetrier(Git git) {
