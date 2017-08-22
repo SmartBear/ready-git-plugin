@@ -1,5 +1,8 @@
 package com.smartbear.readyapi.plugin.git;
 
+import com.eviware.soapui.SoapUI;
+import com.eviware.soapui.impl.wsdl.support.http.ProxyUtils;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,5 +42,71 @@ class AuthenticatorHelper {
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method enableServerRequestorMethod = proxyAndServerAuthenticator.getClass().getMethod(ENABLE_SERVER_REQUESTOR_METHOD, boolean.class);
         enableServerRequestorMethod.invoke(proxyAndServerAuthenticator, enabled);
+    }
+
+
+    static AuthenticatorState resetGlobalAuthenticator() {
+        try {
+            AuthenticatorState state = new AuthenticatorState(AuthenticatorHelper.getDefaultAuthenticator());
+            if (state.getAuthenticator() != null) {
+                if (AuthenticatorHelper.isInstall4jAuthenticator(state.getAuthenticator())) {
+                    // Reset global Authenticator, which the install4j update check messed up
+                    ProxyUtils.setGlobalProxy(SoapUI.getSettings());
+                    state.shouldBeRestored(true);
+                }
+
+                Authenticator currentAuthenticator = AuthenticatorHelper.getDefaultAuthenticator();
+                if ((currentAuthenticator != null) &&
+                        AuthenticatorHelper.isReadyApiProxyAndServerAuthenticator(currentAuthenticator)) {
+                    if (AuthenticatorHelper.isServerRequestorEnabled(currentAuthenticator)) {
+                        AuthenticatorHelper.enableServerRequestor(currentAuthenticator, false);
+                        state.shouldBeRestored(true);
+                    }
+                }
+            }
+            return state;
+        } catch (Exception ignore) {
+        }
+
+        return null;
+    }
+
+    static void restoreGlobalAuthenticator(AuthenticatorState state) {
+        if (state == null || !state.isShouldBeRestored()) {
+            return;
+        }
+
+        try {
+            Authenticator currentAuthenticator = AuthenticatorHelper.getDefaultAuthenticator();
+            if (currentAuthenticator != null &&
+                    AuthenticatorHelper.isReadyApiProxyAndServerAuthenticator(currentAuthenticator)) {
+                AuthenticatorHelper.enableServerRequestor(currentAuthenticator, true);
+            }
+        } catch (Exception ignore) {
+        }
+
+        Authenticator.setDefault(state.getAuthenticator());
+        state.shouldBeRestored(false);
+    }
+}
+
+class AuthenticatorState {
+    private Authenticator authenticator = null;
+    private boolean restore = false;
+
+    AuthenticatorState(Authenticator authenticator) {
+        this.authenticator = authenticator;
+    }
+
+    Authenticator getAuthenticator() {
+        return authenticator;
+    }
+
+    boolean isShouldBeRestored() {
+        return restore;
+    }
+
+    void shouldBeRestored(boolean restore) {
+        this.restore = restore;
     }
 }

@@ -1,7 +1,5 @@
 package com.smartbear.readyapi.plugin.git;
 
-import com.eviware.soapui.SoapUI;
-import com.eviware.soapui.impl.wsdl.support.http.ProxyUtils;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.support.UISupport;
 import com.jcraft.jsch.JSch;
@@ -23,21 +21,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.net.Authenticator;
 
 abstract class CommandRetrier {
 
     private final static Logger logger = LoggerFactory.getLogger(CommandRetrier.class);
 
-    private static final String INSTALL4J_AUTHENTICATOR_CLASS = "com.install4j.runtime.installer.helper.content.HttpAuthenticator";
-    private static final String READY_API_PROXY_AND_SERVER_AUTHENTICATOR_CLASS = "com.eviware.soapui.impl.wsdl.support.http.ProxySettingsAndServerAuthenticator";
-    private static final String IS_SERVER_REQUESTOR_ENABLED_METHOD = "isServerRequestorEnabled";
-    private static final String ENABLE_SERVER_REQUESTOR_METHOD = "enableServerRequestor";
-    private static final String THE_AUTHENTICATOR_FIELD = "theAuthenticator";
     private Git git;
-
-    private Authenticator authenticator = null;
-    private boolean needToRestoreAuthenticator = false;
 
     protected CommandRetrier(Git git) {
         this.git = git;
@@ -46,7 +35,7 @@ abstract class CommandRetrier {
     abstract TransportCommand recreateCommand();
 
     Object execute() throws VcsIntegrationException {
-        resetGlobalAuthenticator();
+        AuthenticatorState authenticatorState = AuthenticatorHelper.resetGlobalAuthenticator();
         TransportCommand command = recreateCommand();
 
         try {
@@ -74,49 +63,8 @@ abstract class CommandRetrier {
                 throw new VcsIntegrationException(e.getMessage(), e);
             }
         } finally {
-            restoreGlobalAuthenticator();
+            AuthenticatorHelper.restoreGlobalAuthenticator(authenticatorState);
         }
-    }
-
-    private void resetGlobalAuthenticator() {
-        try {
-            authenticator = AuthenticatorHelper.getDefaultAuthenticator();
-            if (authenticator != null) {
-                if (AuthenticatorHelper.isInstall4jAuthenticator(authenticator)) {
-                    // Reset global Authenticator, which the install4j update check messed up
-                    ProxyUtils.setGlobalProxy(SoapUI.getSettings());
-                    needToRestoreAuthenticator = true;
-                }
-
-                Authenticator currentAuthenticator = AuthenticatorHelper.getDefaultAuthenticator();
-                if ((currentAuthenticator != null) &&
-                        AuthenticatorHelper.isReadyApiProxyAndServerAuthenticator(currentAuthenticator)) {
-                    if (AuthenticatorHelper.isServerRequestorEnabled(currentAuthenticator)) {
-                        AuthenticatorHelper.enableServerRequestor(currentAuthenticator, false);
-                        needToRestoreAuthenticator = true;
-                    }
-                }
-            }
-        } catch (Exception ignore) {
-        }
-    }
-
-    private void restoreGlobalAuthenticator() {
-        if (!needToRestoreAuthenticator) {
-            return;
-        }
-
-        try {
-            Authenticator currentAuthenticator = AuthenticatorHelper.getDefaultAuthenticator();
-            if (currentAuthenticator != null &&
-                    AuthenticatorHelper.isReadyApiProxyAndServerAuthenticator(currentAuthenticator)) {
-                AuthenticatorHelper.enableServerRequestor(currentAuthenticator, true);
-            }
-        } catch (Exception ignore) {
-        }
-
-        Authenticator.setDefault(authenticator);
-        needToRestoreAuthenticator = false;
     }
 
     private CredentialsProvider askForCredentialsIfNotInCache() {

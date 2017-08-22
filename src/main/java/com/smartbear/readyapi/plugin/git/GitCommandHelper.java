@@ -60,7 +60,12 @@ public class GitCommandHelper {
         if (credentialsProvider instanceof SshPassphraseCredentialsProvider) {
             cloneCommand.setTransportConfigCallback(new CommandRetrier.SshTransportConfigCallback((SshPassphraseCredentialsProvider) credentialsProvider));
         }
-        cloneCommand.call().close();
+        AuthenticatorState authenticatorState = AuthenticatorHelper.resetGlobalAuthenticator();
+        try {
+            cloneCommand.call().close();
+        } finally {
+            AuthenticatorHelper.restoreGlobalAuthenticator(authenticatorState);
+        }
         GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
     }
 
