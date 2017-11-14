@@ -108,7 +108,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
 
             final Set<String> uncommittedChanges = gitObject.status().call().getUncommittedChanges();
             if (uncommittedChanges.size() > 0) {
-                String message = "There are uncommitted changes, commit or revert back those changes before updating from remote repo";
+                String message = "There are uncommitted changes, commit or revert back those changes before updating from the remote repository";
                 UISupport.showErrorMessage(message);
                 throw new VcsIntegrationException(message);
             }
