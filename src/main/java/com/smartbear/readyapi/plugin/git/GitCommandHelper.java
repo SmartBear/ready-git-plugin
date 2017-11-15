@@ -10,6 +10,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.Sequence;
@@ -43,6 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.ADDED;
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.DELETED;
@@ -139,7 +141,6 @@ public class GitCommandHelper {
         return (Iterable<PushResult>) commandRetrier.execute();
     }
 
-
     protected boolean pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
         if (!canMerge(git, mergeStrategy)) {
             return false;
@@ -156,7 +157,6 @@ public class GitCommandHelper {
 
         return pullResult.getMergeResult().getMergeStatus().isSuccessful();
     }
-
 
     protected boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
@@ -374,5 +374,34 @@ public class GitCommandHelper {
         }
 
         return true;
+    }
+
+    public String getCurrentBranch(final Git git) {
+        try {
+            return git.getRepository().getFullBranch();
+        } catch (IOException e) {
+            throw new VcsIntegrationException("Can get current branch", e);
+        }
+    }
+
+    public List<String> getBranchList(final Git git) {
+        try {
+            return git.branchList().call().stream().map(Ref::getName).collect(Collectors.toList());
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException("Can not get list of branches", e);
+        }
+    }
+
+    public void checkout(String commitOrBrunch, final Git git) {
+        try {
+            Ref call = git.checkout().setCreateBranch(false).setName(commitOrBrunch).call();
+            if (call == null) {
+                throw new VcsIntegrationException("Can not checkout to branch " + commitOrBrunch);
+            }
+        } catch (CheckoutConflictException e) {
+            throw new VcsIntegrationException("There are uncommited changes");
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException("Can not checkout to branch " + commitOrBrunch, e);
+        }
     }
 }
