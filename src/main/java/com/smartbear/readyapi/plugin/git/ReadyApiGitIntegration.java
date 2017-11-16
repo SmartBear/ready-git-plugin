@@ -243,13 +243,9 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     @Override
     public boolean checkout(WsdlProject project, VcsBranch branch) {
         final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
-        try {
-            if (!branch.isCurrent()) {
-                gitCommandHelper.checkout(branch.getName(), gitObject);
-            }
+        if (!branch.isCurrent()) {
+            gitCommandHelper.checkout(branch.getName(), gitObject);
             return true;
-        } catch (VcsIntegrationException e) {
-            UISupport.showErrorMessage(e);
         }
         return false;
     }
