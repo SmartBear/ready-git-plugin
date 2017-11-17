@@ -6,12 +6,15 @@ import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
 import com.smartbear.readyapi.plugin.git.ui.ConfirmMergeDialog;
 import org.eclipse.jgit.api.CloneCommand;
+import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ListBranchCommand;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
 import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.Sequence;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
@@ -56,6 +59,8 @@ public class GitCommandHelper {
 
     protected static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     protected static final String HEAD_TREE = "HEAD^{tree}";
+    protected static final String REMOTES_PREFIX = "refs/remotes/";
+    protected static final String REMOTE_BRANCH_PREFIX = REMOTES_PREFIX + "origin/";
 
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         CloneCommand cloneCommand = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory);
@@ -386,23 +391,44 @@ public class GitCommandHelper {
 
     public List<String> getBranchList(final Git git) {
         try {
-            return git.branchList().call().stream().map(Ref::getName).collect(Collectors.toList());
+            return git.branchList()
+                    .setListMode(ListBranchCommand.ListMode.ALL)
+                    .call()
+                    .stream()
+                    .map(Ref::getName)
+                    .collect(Collectors.toList());
         } catch (GitAPIException e) {
             throw new VcsIntegrationException("Can not get list of branches", e);
         }
     }
 
     public void checkout(String commitOrBrunch, final Git git) {
+        if (commitOrBrunch == null) {
+            throw new NullPointerException("commitOrBrunch is null");
+        }
         try {
             if (!git.getRepository().getRepositoryState().canCheckout()) {
                 throw new VcsIntegrationException("Can not checkout!");
             }
-            Ref call = git.checkout().setCreateBranch(false).setName(commitOrBrunch).call();
-            if (call == null) {
-                throw new VcsIntegrationException("Can not checkout to branch " + commitOrBrunch);
+            if (commitOrBrunch.startsWith(REMOTE_BRANCH_PREFIX)) {
+                String branchName = commitOrBrunch.substring(REMOTE_BRANCH_PREFIX.length());
+                git.checkout()
+                        .setCreateBranch(true)
+                        .setName(branchName)
+                        .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+                        .setStartPoint("origin/" + branchName)
+                        .call();
+            } else {
+                git.checkout()
+                        .setCreateBranch(false)
+                        .setName(commitOrBrunch)
+                        .setStartPoint(commitOrBrunch)
+                        .call();
             }
+        } catch (RefAlreadyExistsException e) {
+            throw new VcsIntegrationException("Local branch already exists", e);
         } catch (CheckoutConflictException e) {
-            throw new VcsIntegrationException("There are uncommited changes");
+            throw new VcsIntegrationException("There are uncommited changes", e);
         } catch (GitAPIException e) {
             throw new VcsIntegrationException("Can not checkout to branch " + commitOrBrunch, e);
         }
