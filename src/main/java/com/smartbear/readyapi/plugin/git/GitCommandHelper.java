@@ -394,6 +394,9 @@ public class GitCommandHelper {
 
     public void checkout(String commitOrBrunch, final Git git) {
         try {
+            if (!git.getRepository().getRepositoryState().canCheckout()) {
+                throw new VcsIntegrationException("Can not checkout!");
+            }
             Ref call = git.checkout().setCreateBranch(false).setName(commitOrBrunch).call();
             if (call == null) {
                 throw new VcsIntegrationException("Can not checkout to branch " + commitOrBrunch);
