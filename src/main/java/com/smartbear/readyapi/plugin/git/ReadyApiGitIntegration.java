@@ -241,7 +241,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public boolean switchForBranch(WsdlProject project, VcsBranch branch) {
+    public boolean switchBranch(WsdlProject project, VcsBranch branch) {
         final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
         if (!branch.isCurrent()) {
             gitCommandHelper.checkout(branch.getName(), gitObject);
