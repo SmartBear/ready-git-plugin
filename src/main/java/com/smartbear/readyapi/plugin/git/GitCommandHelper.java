@@ -385,7 +385,7 @@ public class GitCommandHelper {
         try {
             return git.getRepository().getFullBranch();
         } catch (IOException e) {
-            throw new VcsIntegrationException("Can get current branch", e);
+            throw new VcsIntegrationException("Can not get current branch.", e);
         }
     }
 
@@ -398,17 +398,18 @@ public class GitCommandHelper {
                     .map(Ref::getName)
                     .collect(Collectors.toList());
         } catch (GitAPIException e) {
-            throw new VcsIntegrationException("Can not get list of branches", e);
+            throw new VcsIntegrationException("Can not get list of branches.", e);
         }
     }
 
     public void checkout(String commitOrBrunch, final Git git) {
         if (commitOrBrunch == null) {
-            throw new NullPointerException("commitOrBrunch is null");
+            throw new IllegalArgumentException("commitOrBrunch is null");
         }
         try {
             if (!git.getRepository().getRepositoryState().canCheckout()) {
-                throw new VcsIntegrationException("Can not checkout!");
+                throw new VcsIntegrationException(
+                        "Can not checkout to branch " + commitOrBrunch + " according to repository state.");
             }
             if (commitOrBrunch.startsWith(REMOTE_BRANCH_PREFIX)) {
                 String branchName = commitOrBrunch.substring(REMOTE_BRANCH_PREFIX.length());
