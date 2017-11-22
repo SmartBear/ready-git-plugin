@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -385,7 +386,7 @@ public class GitCommandHelper {
         try {
             return git.getRepository().getFullBranch();
         } catch (IOException e) {
-            throw new VcsIntegrationException("Can not get current branch.", e);
+            throw new VcsIntegrationException("Unable to get the current branch.", e);
         }
     }
 
@@ -398,7 +399,7 @@ public class GitCommandHelper {
                     .map(Ref::getName)
                     .collect(Collectors.toList());
         } catch (GitAPIException e) {
-            throw new VcsIntegrationException("Can not get list of branches.", e);
+            throw new VcsIntegrationException("Unable to get a list of branches.", e);
         }
     }
 
@@ -408,8 +409,9 @@ public class GitCommandHelper {
         }
         try {
             if (!git.getRepository().getRepositoryState().canCheckout()) {
-                throw new VcsIntegrationException(
-                        "Can not checkout to branch " + commitOrBrunch + " according to repository state.");
+                throw new VcsIntegrationException(MessageFormat.format(
+                        "Unable to switch to the branch {0}, because some operation is being performed.",
+                        commitOrBrunch));
             }
             if (commitOrBrunch.startsWith(REMOTE_BRANCH_PREFIX)) {
                 String branchName = commitOrBrunch.substring(REMOTE_BRANCH_PREFIX.length());
@@ -427,11 +429,12 @@ public class GitCommandHelper {
                         .call();
             }
         } catch (RefAlreadyExistsException e) {
-            throw new VcsIntegrationException("Local branch already exists", e);
+            throw new VcsIntegrationException("The local branch already exists.", e);
         } catch (CheckoutConflictException e) {
-            throw new VcsIntegrationException("There are uncommited changes", e);
+            throw new VcsIntegrationException("There are uncommitted changes.", e);
         } catch (GitAPIException e) {
-            throw new VcsIntegrationException("Can not checkout to branch " + commitOrBrunch, e);
+            throw new VcsIntegrationException(
+                    MessageFormat.format("Unable to switch to the branch {0}.", commitOrBrunch), e);
         }
     }
 }
