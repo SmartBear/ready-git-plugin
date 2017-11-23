@@ -301,6 +301,11 @@ public class GitCommandHelper {
 
     private CanonicalTreeParser createTreeParser(Repository repo, ObjectReader reader, String treeName) throws IOException {
         ObjectId head = repo.resolve(treeName);
+        if (head == null) {
+            String message = "Please, fetch updates manually firstly using 'git fetch'.";
+            UISupport.showInfoMessage(message);
+            throw new VcsIntegrationException(message);
+        }
         CanonicalTreeParser localRepoTreeParser = new CanonicalTreeParser();
         localRepoTreeParser.reset(reader, head);
         return localRepoTreeParser;
