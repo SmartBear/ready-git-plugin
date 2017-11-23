@@ -8,6 +8,7 @@ import com.eviware.soapui.plugins.vcs.HistoryEntry;
 import com.eviware.soapui.plugins.vcs.ImportProjectFromVcsGui;
 import com.eviware.soapui.plugins.vcs.LockHandler;
 import com.eviware.soapui.plugins.vcs.RepositorySelectionGui;
+import com.eviware.soapui.plugins.vcs.VcsBranch;
 import com.eviware.soapui.plugins.vcs.VcsIntegration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationConfiguration;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
@@ -32,8 +33,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.eviware.soapui.plugins.vcs.CommitResult.CommitStatus.FAILED;
 import static com.eviware.soapui.plugins.vcs.CommitResult.CommitStatus.SUCCESSFUL;
@@ -236,4 +240,24 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         return historyEntries;
     }
 
+    @Override
+    public boolean switchBranch(WsdlProject project, VcsBranch branch) {
+        final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
+        if (!branch.isCurrent()) {
+            gitCommandHelper.checkout(branch.getName(), gitObject);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public List<VcsBranch> getBranchList(WsdlProject project) {
+        final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
+        String currentBranch = gitCommandHelper.getCurrentBranch(gitObject);
+        return Collections.unmodifiableList(gitCommandHelper.getBranchList(gitObject)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(s -> new VcsBranch(s, s.equals(currentBranch)))
+                .collect(Collectors.toList()));
+    }
 }
