@@ -82,7 +82,7 @@ public class GitCommandHelper {
             initLocalRepository(project, repositoryPath);
             GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
         } catch (GitAPIException | IOException e) {
-            throw new VcsIntegrationException("Failed to share project", e);
+            throw new VcsIntegrationException("Failed to share the project.", e);
         }
     }
 

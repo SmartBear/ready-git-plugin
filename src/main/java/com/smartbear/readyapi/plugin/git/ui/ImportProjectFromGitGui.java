@@ -28,7 +28,7 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
             gitCommandHelper.cloneRepository(getSelected().getRepositoryPath(), getSelected().getCredentialsProvider(), emptyDirectory);
             return new VcsRepositoryInfo("Git", getSelected().getRepositoryPath());
         } catch (Exception e) {
-            throw new VcsIntegrationException("Failed to clone remote repository", e);
+            throw new VcsIntegrationException("Failed to clone the remote repository.", e);
         }
     }
 
