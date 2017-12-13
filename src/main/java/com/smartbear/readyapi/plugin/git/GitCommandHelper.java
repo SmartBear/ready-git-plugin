@@ -4,6 +4,7 @@ import com.eviware.soapui.impl.wsdl.WsdlProject;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
+import com.smartbear.ready.core.Logging;
 import com.smartbear.readyapi.plugin.git.ui.ConfirmMergeDialog;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.CreateBranchCommand;
@@ -291,7 +292,7 @@ public class GitCommandHelper {
             final RemoteRefUpdate.Status status = refUpdate.getStatus();
             if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
                 isPushSuccessful = false;
-                logger.warn("Push to one of the remote " + refUpdate.getSrcRef() + " was not successful: " + status);
+                Logging.getErrorLog().error(pushResult.getMessages());
                 break;
             }
         }
