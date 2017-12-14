@@ -152,14 +152,22 @@ public class ReadyApiGitIntegration implements VcsIntegration {
         final WsdlProject project = update.getProject();
         final Git gitObject = gitCommandHelper.createGitObject(project.getPath());
 
-        final boolean successfulUpdate = gitCommandHelper.commitAndPushUpdates(vcsUpdates, commitMessage, gitObject);
-
-        CommitResult result = successfulUpdate ? new CommitResult(SUCCESSFUL, "Commit was successful") :
-                new CommitResult(FAILED, "Commit Failed");
+        final GitCommandHelper.CommitStatus successfulUpdate = gitCommandHelper.commitAndPushUpdates(vcsUpdates, commitMessage, gitObject);
 
         gitObject.getRepository().close();
 
-        return result;
+        switch (successfulUpdate) {
+            case OK:
+                return new CommitResult(SUCCESSFUL, "Commit was successful");
+            case FAILED_PUSH:
+                // here I use FAILED instead of PARTIAL,
+                // because PARTIAL means that part of changes is in the r e m o t e repository,
+                // but in this case all changes are rejected
+                return new CommitResult(FAILED, "The changes have been committed to the local repository successfully, however, they have not been pushed to the remote repository. You can push them manually by using the command line of Git.");
+            case FAILED_COMMIT:
+            default:
+                return new CommitResult(FAILED, "Commit failed.");
+        }
     }
 
     @Override

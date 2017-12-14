@@ -63,6 +63,12 @@ public class GitCommandHelper {
     protected static final String REMOTES_PREFIX = "refs/remotes/";
     protected static final String REMOTE_BRANCH_PREFIX = REMOTES_PREFIX + "origin/";
 
+    public enum CommitStatus {
+        OK,
+        FAILED_COMMIT,
+        FAILED_PUSH
+    }
+
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         CloneCommand cloneCommand = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory);
         if (credentialsProvider instanceof SshPassphraseCredentialsProvider) {
@@ -115,7 +121,7 @@ public class GitCommandHelper {
         commandRetrier.execute();
     }
 
-    protected boolean commitAndPushUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
+    protected CommitStatus commitAndPushUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
         addFilesToIndex(vcsUpdates, git);
         try {
             Iterable<PushResult> dryRunResult = gitPushDryRun(commitMessage, git);
@@ -164,17 +170,17 @@ public class GitCommandHelper {
         return pullResult.getMergeResult().getMergeStatus().isSuccessful();
     }
 
-    protected boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
+    protected CommitStatus pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
 
         if (!isDryRunSuccessful) {
             MergeStrategy mergeStrategy = promptForMergeStrategy();
             if (mergeStrategy == null || !pullWithMergeStrategy(git, mergeStrategy)) {
-                return false;
+                return CommitStatus.FAILED_COMMIT;
             }
         }
         results = gitPush(git);
-        return isSuccessfulPush(results);
+        return isSuccessfulPush(results) ? CommitStatus.OK : CommitStatus.FAILED_PUSH;
     }
 
     protected Git createGitObject(final String localPath) {
