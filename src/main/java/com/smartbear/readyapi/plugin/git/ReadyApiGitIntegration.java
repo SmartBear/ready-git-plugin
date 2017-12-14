@@ -166,7 +166,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 return new CommitResult(FAILED, "Local commit was successful, but push to remote was failed. Try to push the changes manually.");
             case FAILED_COMMIT:
             default:
-                return new CommitResult(FAILED, "Commit Failed");
+                return new CommitResult(FAILED, "Commit failed.");
         }
     }
 
