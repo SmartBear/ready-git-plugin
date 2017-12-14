@@ -163,7 +163,7 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 // here I use FAILED instead of PARTIAL,
                 // because PARTIAL means that part of changes is in the r e m o t e repository,
                 // but in this case all changes are rejected
-                return new CommitResult(FAILED, "Local commit was successful, but push to remote was failed. Try to push the changes manually using native git.");
+                return new CommitResult(FAILED, "The changes have been committed to the local repository successfully, however, they have not been pushed to the remote repository. You can push them manually by using the command line of Git.");
             case FAILED_COMMIT:
             default:
                 return new CommitResult(FAILED, "Commit failed.");
