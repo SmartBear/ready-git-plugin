@@ -49,7 +49,7 @@ public class ConfirmMergeDialog extends JDialog {
 
     private JPanel buildContent() {
         JPanel contentPanel = new JPanel(new MigLayout("wrap", "0[fill,grow]0", "0[32!]4[]8[32!]0"));
-        JLabel topLabel = new JLabel("<html><body>Ready! API is about to merge the project files on your computer with their versions from the Git repository.<br/>" +
+        JLabel topLabel = new JLabel("<html><body>ReadyAPI is about to merge the project files on your computer with their versions from the Git repository.<br/>" +
                 "It detected merge conflicts in the following files:</body></html>");
         contentPanel.add(topLabel);
 
