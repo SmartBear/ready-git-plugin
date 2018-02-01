@@ -298,7 +298,9 @@ public class GitCommandHelper {
             final RemoteRefUpdate.Status status = refUpdate.getStatus();
             if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
                 isPushSuccessful = false;
-                Logging.getErrorLog().error(pushResult.getMessages());
+                if (status != RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD) {
+                    Logging.getErrorLog().error(pushResult.getMessages());
+                }
                 break;
             }
         }
