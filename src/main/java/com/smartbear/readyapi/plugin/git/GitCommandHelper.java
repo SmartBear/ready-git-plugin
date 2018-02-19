@@ -401,6 +401,7 @@ public class GitCommandHelper {
 
     public List<String> getBranchList(final Git git) {
         try {
+            gitFetch(git);
             return git.branchList()
                     .setListMode(ListBranchCommand.ListMode.ALL)
                     .call()
