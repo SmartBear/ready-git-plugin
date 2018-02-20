@@ -111,6 +111,16 @@ public class GitCommandHelper {
         commandRetrier.execute();
     }
 
+    protected void gitFetch(final Git git, boolean removeDeletedRefs) {
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.fetch().setRemoveDeletedRefs(removeDeletedRefs);
+            }
+        };
+        commandRetrier.execute();
+    }
+
     protected void gitCreateAndPushTag(String tagName, final Git git) throws GitAPIException {
         git.tag().setName(tagName).call();
         CommandRetrier commandRetrier = new CommandRetrier(git) {
@@ -401,7 +411,7 @@ public class GitCommandHelper {
 
     public List<String> getBranchList(final Git git) {
         try {
-            gitFetch(git);
+            gitFetch(git, true);
             return git.branchList()
                     .setListMode(ListBranchCommand.ListMode.ALL)
                     .call()
