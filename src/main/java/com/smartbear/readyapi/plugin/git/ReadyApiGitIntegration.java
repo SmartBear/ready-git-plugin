@@ -106,18 +106,18 @@ public class ReadyApiGitIntegration implements VcsIntegration {
     }
 
     @Override
-    public void updateFromRemoteRepository(File projectFile, boolean b) {
+    public boolean updateFromRemoteRepository(File projectFile, boolean b) {
         try {
             final Git gitObject = gitCommandHelper.createGitObject(projectFile.getPath());
 
             final Set<String> uncommittedChanges = gitObject.status().call().getUncommittedChanges();
             if (uncommittedChanges.size() > 0) {
                 UISupport.showErrorMessage("There are uncommitted changes, commit or revert back those changes before updating from remote repo");
-                return;
+                return false;
             }
             MergeStrategy mergeStrategy = gitCommandHelper.promptForMergeStrategy();
             if (mergeStrategy == null) {
-                return;
+                return false;
             }
 
             final boolean successfulPull = gitCommandHelper.pullWithMergeStrategy(gitObject, mergeStrategy);
@@ -127,7 +127,10 @@ public class ReadyApiGitIntegration implements VcsIntegration {
                 UISupport.showInfoMessage("Remote changes were pulled successfully.");
             } else {
                 UISupport.showErrorMessage("Failed to pull remote changes.");
+                return false;
             }
+
+            return true;
 
         } catch (GitAPIException e) {
             throw new VcsIntegrationException(e.getMessage(), e.getCause());
