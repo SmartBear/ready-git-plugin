@@ -25,7 +25,7 @@ public abstract class AbstractRepositorySelectionGui {
     private RepositoryForm selected;
 
     protected Component createGui(String helpUrl, String helpText, String remoteRepositoryUrl) {
-        JPanel panel = new JPanel(new MigLayout("wrap", "8[grow,fill]8", "8[][][grow,fill][]8"));
+        JPanel panel = new JPanel(new MigLayout("wrap", "8[grow,fill]8", "8[][][][grow,fill][]8"));
 
         boolean httpUrl = isHttpUrl(remoteRepositoryUrl);
         sshRepositoryForm = new SshRepositoryForm(httpUrl ? null : remoteRepositoryUrl, false);
