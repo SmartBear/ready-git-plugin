@@ -94,8 +94,12 @@ public class GitCommandHelper {
     }
 
     public String getRemoteRepositoryUrl(WsdlProject project) {
+        return getRemoteRepositoryUrl(project.getPath());
+    }
+
+    public String getRemoteRepositoryUrl(String projectPath) {
         try {
-            return createGitObject(project.getPath()).getRepository().getConfig().getString("remote", "origin", "url");
+            return createGitObject(projectPath).getRepository().getConfig().getString("remote", "origin", "url");
         } catch (Exception ignore) {
             return null;
         }
