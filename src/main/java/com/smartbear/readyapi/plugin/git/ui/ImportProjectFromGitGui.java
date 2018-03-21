@@ -27,12 +27,11 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
     @Override
     public VcsRepositoryInfo downloadProjectFiles(File emptyDirectory) {
         try {
-            String repositoryPath = getSelected().getRepositoryPath();
-            if (repositoryPath == null) {
-                //local repository
+            if (isLocal()) {
                 new InternalProImportWsdlProjectAction().perform(ApplicationEnvironment.getWorkspace(), emptyDirectory);
                 return null;
             } else {
+                String repositoryPath = getSelected().getRepositoryPath();
                 gitCommandHelper.cloneRepository(repositoryPath, getSelected().getCredentialsProvider(), emptyDirectory);
                 return new VcsRepositoryInfo("Git", repositoryPath);
             }
