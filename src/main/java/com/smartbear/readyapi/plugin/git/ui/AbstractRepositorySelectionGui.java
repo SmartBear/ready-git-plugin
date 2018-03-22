@@ -15,6 +15,7 @@ import static com.eviware.soapui.support.UISupport.createLabelLink;
 public abstract class AbstractRepositorySelectionGui {
     public static final String LABEL_HTTPS = "HTTPS";
     public static final String LABEL_SSH = "SSH";
+    public static final String LABEL_LOCAL = "Local";
 
     private RepositoryForm sshRepositoryForm = new SshRepositoryForm();
     private RepositoryForm httpsRepositoryForm = new HttpsRepositoryForm();
@@ -37,12 +38,12 @@ public abstract class AbstractRepositorySelectionGui {
         panel.add(sshRadioButton);
         JRadioButton httpsRadioButton = createRadioButton(LABEL_HTTPS, group);
         panel.add(httpsRadioButton);
-        JRadioButton localRadioButton = createRadioButton("Local", group);
+        JRadioButton localRadioButton = createRadioButton(LABEL_LOCAL, group);
         panel.add(localRadioButton);
 
         cards.add(sshRepositoryForm.getComponent(), LABEL_SSH);
         cards.add(httpsRepositoryForm.getComponent(), LABEL_HTTPS);
-        cards.add(localRepositoryForm.getComponent(), "Local");
+        cards.add(localRepositoryForm.getComponent(), LABEL_LOCAL);
 
         panel.add(cards);
         panel.add(createLabelLink(helpUrl, helpText));
