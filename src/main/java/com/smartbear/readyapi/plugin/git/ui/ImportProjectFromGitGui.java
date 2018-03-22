@@ -1,10 +1,9 @@
 package com.smartbear.readyapi.plugin.git.ui;
 
-import com.eviware.soapui.impl.actions.InternalProImportWsdlProjectAction;
 import com.eviware.soapui.plugins.vcs.ImportProjectFromVcsGui;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsRepositoryInfo;
-import com.smartbear.ready.core.ApplicationEnvironment;
+import com.eviware.soapui.support.StringUtils;
 import com.smartbear.readyapi.plugin.git.GitCommandHelper;
 
 import java.awt.Component;
@@ -27,11 +26,10 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
     @Override
     public VcsRepositoryInfo downloadProjectFiles(File emptyDirectory) {
         try {
-            if (isLocal()) {
-                new InternalProImportWsdlProjectAction().perform(ApplicationEnvironment.getWorkspace(), emptyDirectory);
+            String repositoryPath = getSelected().getRepositoryPath();
+            if (isLocal() || StringUtils.isNullOrEmpty(repositoryPath)) {
                 return null;
             } else {
-                String repositoryPath = getSelected().getRepositoryPath();
                 gitCommandHelper.cloneRepository(repositoryPath, getSelected().getCredentialsProvider(), emptyDirectory);
                 return new VcsRepositoryInfo("Git", repositoryPath);
             }
