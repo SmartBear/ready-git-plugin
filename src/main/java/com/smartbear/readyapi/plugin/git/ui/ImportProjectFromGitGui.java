@@ -28,7 +28,8 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
         try {
             String repositoryPath = getSelected().getRepositoryPath();
             if (isLocal() || StringUtils.isNullOrEmpty(repositoryPath)) {
-                return null;
+                return new VcsRepositoryInfo("Git",
+                        gitCommandHelper.getRemoteRepositoryUrl(emptyDirectory.getAbsolutePath()));
             } else {
                 gitCommandHelper.cloneRepository(repositoryPath, getSelected().getCredentialsProvider(), emptyDirectory);
                 return new VcsRepositoryInfo("Git", repositoryPath);
