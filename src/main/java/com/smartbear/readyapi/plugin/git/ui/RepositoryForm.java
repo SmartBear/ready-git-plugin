@@ -12,4 +12,6 @@ public interface RepositoryForm {
     JPanel getComponent();
 
     boolean isValid();
+
+    boolean isLocal();
 }

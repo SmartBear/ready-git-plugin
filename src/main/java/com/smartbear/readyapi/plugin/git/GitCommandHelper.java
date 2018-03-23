@@ -4,13 +4,18 @@ import com.eviware.soapui.impl.wsdl.WsdlProject;
 import com.eviware.soapui.plugins.vcs.VcsIntegrationException;
 import com.eviware.soapui.plugins.vcs.VcsUpdate;
 import com.eviware.soapui.support.UISupport;
+import com.smartbear.ready.core.Logging;
 import com.smartbear.readyapi.plugin.git.ui.ConfirmMergeDialog;
 import org.eclipse.jgit.api.CloneCommand;
+import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ListBranchCommand;
 import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.TransportCommand;
+import org.eclipse.jgit.api.errors.CheckoutConflictException;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.RefAlreadyExistsException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.Sequence;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
@@ -36,6 +41,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -43,6 +49,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.ADDED;
 import static com.eviware.soapui.plugins.vcs.VcsUpdate.VcsUpdateType.DELETED;
@@ -54,6 +61,14 @@ public class GitCommandHelper {
 
     protected static final String FETCH_HEAD_TREE = "FETCH_HEAD^{tree}";
     protected static final String HEAD_TREE = "HEAD^{tree}";
+    protected static final String REMOTES_PREFIX = "refs/remotes/";
+    protected static final String REMOTE_BRANCH_PREFIX = REMOTES_PREFIX + "origin/";
+
+    public enum CommitStatus {
+        OK,
+        FAILED_COMMIT,
+        FAILED_PUSH
+    }
 
     public void cloneRepository(String repositoryPath, CredentialsProvider credentialsProvider, File emptyDirectory) throws GitAPIException {
         CloneCommand cloneCommand = Git.cloneRepository().setURI(repositoryPath).setCredentialsProvider(credentialsProvider).setDirectory(emptyDirectory);
@@ -74,13 +89,17 @@ public class GitCommandHelper {
             initLocalRepository(project, repositoryPath);
             GitCredentialProviderCache.instance().addCredentialProvider(credentialsProvider, repositoryPath);
         } catch (GitAPIException | IOException e) {
-            throw new VcsIntegrationException("Failed to share project", e);
+            throw new VcsIntegrationException("Failed to share the project.", e);
         }
     }
 
     public String getRemoteRepositoryUrl(WsdlProject project) {
+        return getRemoteRepositoryUrl(project.getPath());
+    }
+
+    public String getRemoteRepositoryUrl(String projectPath) {
         try {
-            return createGitObject(project.getPath()).getRepository().getConfig().getString("remote", "origin", "url");
+            return createGitObject(projectPath).getRepository().getConfig().getString("remote", "origin", "url");
         } catch (Exception ignore) {
             return null;
         }
@@ -91,6 +110,16 @@ public class GitCommandHelper {
             @Override
             TransportCommand recreateCommand() {
                 return git.fetch();
+            }
+        };
+        commandRetrier.execute();
+    }
+
+    protected void gitFetch(final Git git, boolean removeDeletedRefs) {
+        CommandRetrier commandRetrier = new CommandRetrier(git) {
+            @Override
+            TransportCommand recreateCommand() {
+                return git.fetch().setRemoveDeletedRefs(removeDeletedRefs);
             }
         };
         commandRetrier.execute();
@@ -107,7 +136,7 @@ public class GitCommandHelper {
         commandRetrier.execute();
     }
 
-    protected boolean commitAndPushUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
+    protected CommitStatus commitAndPushUpdates(Collection<VcsUpdate> vcsUpdates, String commitMessage, final Git git) {
         addFilesToIndex(vcsUpdates, git);
         try {
             Iterable<PushResult> dryRunResult = gitPushDryRun(commitMessage, git);
@@ -139,7 +168,6 @@ public class GitCommandHelper {
         return (Iterable<PushResult>) commandRetrier.execute();
     }
 
-
     protected boolean pullWithMergeStrategy(final Git git, final MergeStrategy mergeStrategy) {
         if (!canMerge(git, mergeStrategy)) {
             return false;
@@ -157,18 +185,17 @@ public class GitCommandHelper {
         return pullResult.getMergeResult().getMergeStatus().isSuccessful();
     }
 
-
-    protected boolean pushCommit(final Git git, boolean isDryRunSuccessful) {
+    protected CommitStatus pushCommit(final Git git, boolean isDryRunSuccessful) {
         Iterable<PushResult> results;
 
         if (!isDryRunSuccessful) {
             MergeStrategy mergeStrategy = promptForMergeStrategy();
             if (mergeStrategy == null || !pullWithMergeStrategy(git, mergeStrategy)) {
-                return false;
+                return CommitStatus.FAILED_COMMIT;
             }
         }
         results = gitPush(git);
-        return isSuccessfulPush(results);
+        return isSuccessfulPush(results) ? CommitStatus.OK : CommitStatus.FAILED_PUSH;
     }
 
     protected Git createGitObject(final String localPath) {
@@ -285,7 +312,9 @@ public class GitCommandHelper {
             final RemoteRefUpdate.Status status = refUpdate.getStatus();
             if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
                 isPushSuccessful = false;
-                logger.warn("Push to one of the remote " + refUpdate.getSrcRef() + " was not successful: " + status);
+                if (status != RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD) {
+                    Logging.getErrorLog().error(pushResult.getMessages());
+                }
                 break;
             }
         }
@@ -374,5 +403,62 @@ public class GitCommandHelper {
         }
 
         return true;
+    }
+
+    public String getCurrentBranch(final Git git) {
+        try {
+            return git.getRepository().getFullBranch();
+        } catch (IOException e) {
+            throw new VcsIntegrationException("Unable to get the current branch.", e);
+        }
+    }
+
+    public List<String> getBranchList(final Git git) {
+        try {
+            gitFetch(git, true);
+            return git.branchList()
+                    .setListMode(ListBranchCommand.ListMode.ALL)
+                    .call()
+                    .stream()
+                    .map(Ref::getName)
+                    .collect(Collectors.toList());
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException("Unable to get a list of branches.", e);
+        }
+    }
+
+    public void checkout(String commitOrBrunch, final Git git) {
+        if (commitOrBrunch == null) {
+            throw new IllegalArgumentException("commitOrBrunch is null");
+        }
+        try {
+            if (!git.getRepository().getRepositoryState().canCheckout()) {
+                throw new VcsIntegrationException(MessageFormat.format(
+                        "Unable to switch to the branch {0}, because some operation is being performed.",
+                        commitOrBrunch));
+            }
+            if (commitOrBrunch.startsWith(REMOTE_BRANCH_PREFIX)) {
+                String branchName = commitOrBrunch.substring(REMOTE_BRANCH_PREFIX.length());
+                git.checkout()
+                        .setCreateBranch(true)
+                        .setName(branchName)
+                        .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+                        .setStartPoint("origin/" + branchName)
+                        .call();
+            } else {
+                git.checkout()
+                        .setCreateBranch(false)
+                        .setName(commitOrBrunch)
+                        .setStartPoint(commitOrBrunch)
+                        .call();
+            }
+        } catch (RefAlreadyExistsException e) {
+            throw new VcsIntegrationException("The local branch already exists.", e);
+        } catch (CheckoutConflictException e) {
+            throw new VcsIntegrationException("There are uncommitted changes.", e);
+        } catch (GitAPIException e) {
+            throw new VcsIntegrationException(
+                    MessageFormat.format("Unable to switch to the branch {0}.", commitOrBrunch), e);
+        }
     }
 }

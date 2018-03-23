@@ -60,4 +60,9 @@ public class HttpsRepositoryForm implements RepositoryForm {
     public boolean isValid() {
         return StringUtils.hasContent(getRepositoryPath());
     }
+
+    @Override
+    public boolean isLocal() {
+        return false;
+    }
 }
