@@ -15,16 +15,18 @@ import static com.eviware.soapui.support.UISupport.createLabelLink;
 public abstract class AbstractRepositorySelectionGui {
     public static final String LABEL_HTTPS = "HTTPS";
     public static final String LABEL_SSH = "SSH";
+    public static final String LABEL_LOCAL = "Local";
 
     private RepositoryForm sshRepositoryForm = new SshRepositoryForm();
     private RepositoryForm httpsRepositoryForm = new HttpsRepositoryForm();
+    private LocalRepositoryForm localRepositoryForm = new LocalRepositoryForm();
 
     private JPanel cards = new JPanel(new CardLayout());
 
     private RepositoryForm selected;
 
     protected Component createGui(String helpUrl, String helpText, String remoteRepositoryUrl) {
-        JPanel panel = new JPanel(new MigLayout("wrap", "8[grow,fill]8", "8[][][grow,fill][]8"));
+        JPanel panel = new JPanel(new MigLayout("wrap", "8[grow,fill]8", "8[][][][grow,fill][]8"));
 
         boolean httpUrl = isHttpUrl(remoteRepositoryUrl);
         sshRepositoryForm = new SshRepositoryForm(httpUrl ? null : remoteRepositoryUrl, false);
@@ -36,9 +38,12 @@ public abstract class AbstractRepositorySelectionGui {
         panel.add(sshRadioButton);
         JRadioButton httpsRadioButton = createRadioButton(LABEL_HTTPS, group);
         panel.add(httpsRadioButton);
+        JRadioButton localRadioButton = createRadioButton(LABEL_LOCAL, group);
+        panel.add(localRadioButton);
 
         cards.add(sshRepositoryForm.getComponent(), LABEL_SSH);
         cards.add(httpsRepositoryForm.getComponent(), LABEL_HTTPS);
+        cards.add(localRepositoryForm.getComponent(), LABEL_LOCAL);
 
         panel.add(cards);
         panel.add(createLabelLink(helpUrl, helpText));
@@ -47,7 +52,7 @@ public abstract class AbstractRepositorySelectionGui {
         return panel;
     }
 
-    protected boolean isHttpUrl(String remoteRepositoryUrl){
+    protected boolean isHttpUrl(String remoteRepositoryUrl) {
         return remoteRepositoryUrl != null && remoteRepositoryUrl.startsWith("http");
     }
 
@@ -68,8 +73,10 @@ public abstract class AbstractRepositorySelectionGui {
     private void selectCard(String label) {
         if (LABEL_SSH.equals(label)) {
             selected = sshRepositoryForm;
-        } else {
+        } else if (LABEL_HTTPS.equals(label)) {
             selected = httpsRepositoryForm;
+        } else {
+            selected = localRepositoryForm;
         }
         CardLayout cardLayout = (CardLayout) cards.getLayout();
         cardLayout.show(cards, label);

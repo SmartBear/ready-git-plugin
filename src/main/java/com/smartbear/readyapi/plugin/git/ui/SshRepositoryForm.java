@@ -72,6 +72,11 @@ public class SshRepositoryForm implements RepositoryForm {
         return StringUtils.hasContent(getRepositoryPath());
     }
 
+    @Override
+    public boolean isLocal() {
+        return false;
+    }
+
     private JButton createSelectFileButton(final JTextField textField) {
         final JFileChooser fileChooser = createFileChooser();
         final JButton selectFileButton = new JButton("Select");
