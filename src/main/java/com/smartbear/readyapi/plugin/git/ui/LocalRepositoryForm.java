@@ -23,7 +23,7 @@ public class LocalRepositoryForm implements RepositoryForm {
     @Override
     public JPanel getComponent() {
         JPanel panel = new JPanel();
-        panel.add(new JLabel("Specify the path to the local repository in the Project Directory field."));
+        panel.add(new JLabel("Specify the path to a local repository in the Project Directory field."));
         return panel;
     }
 
