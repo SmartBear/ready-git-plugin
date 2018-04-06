@@ -10,22 +10,19 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
-public class HttpsRepositoryForm implements RepositoryForm {
+public class HttpsRepositoryForm extends AbstractRepositoryForm {
 
     private JTextField repositoryUrlField;
 
     private JTextField usernameField;
     private JTextField passwordField;
-    private String repoUrl;
-    private boolean repoUrlReadOnly;
 
     public HttpsRepositoryForm() {
         this("", false);
     }
 
     public HttpsRepositoryForm(String repoUrl, boolean repoUrlReadOnly) {
-        this.repoUrl = repoUrl;
-        this.repoUrlReadOnly = repoUrlReadOnly;
+        super(repoUrl, repoUrlReadOnly);
     }
 
     @Override

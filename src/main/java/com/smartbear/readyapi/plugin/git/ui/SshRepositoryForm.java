@@ -16,22 +16,19 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 
-public class SshRepositoryForm implements RepositoryForm {
+public class SshRepositoryForm extends AbstractRepositoryForm {
 
     private JTextField repositoryUrlField;
 
     private JTextField passphraseField;
     private JTextField sshKeyPathField;
-    private String repoUrl;
-    private boolean repoUrlReadOnly;
 
     public SshRepositoryForm() {
         this("", false);
     }
 
     public SshRepositoryForm(String repoUrl, boolean repoUrlReadOnly) {
-        this.repoUrl = repoUrl;
-        this.repoUrlReadOnly = repoUrlReadOnly;
+        super(repoUrl, repoUrlReadOnly);
     }
 
     @Override
