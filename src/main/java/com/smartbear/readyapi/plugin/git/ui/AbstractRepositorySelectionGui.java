@@ -51,21 +51,25 @@ public abstract class AbstractRepositorySelectionGui {
 
             if ((LABEL_HTTPS.equals(repositorySelection.label) && isHttp)
                     || (LABEL_SSH.equals(repositorySelection.label) && !isHttp)) {
-                repositorySelection.radioButton.setSelected(true);
-                selectCard(repositorySelection.label);
-                showCard(repositorySelection.label);
+                switchRepositorySource(repositorySelection);
                 shown = true;
                 break;
             }
         }
         if (!shown) {
-            repositorySelections.stream().findFirst().ifPresent(repositorySelection -> {
-                repositorySelection.radioButton.setSelected(true);
-                selectCard(repositorySelection.label);
-                showCard(repositorySelection.label);
-            });
+            repositorySelections.stream().findFirst().ifPresent(this::switchRepositorySource);
         }
         return panel;
+    }
+
+    private void switchRepositorySource(RepositorySelection repositorySelection) {
+        repositorySelection.radioButton.setSelected(true);
+        switchRepositorySourcePanel(repositorySelection.label);
+    }
+
+    private void switchRepositorySourcePanel(String label) {
+        selectCard(label);
+        showCard(label);
     }
 
     protected boolean isHttpUrl(String remoteRepositoryUrl) {
@@ -81,10 +85,7 @@ public abstract class AbstractRepositorySelectionGui {
 
     protected JRadioButton createRadioButton(final String label) {
         JRadioButton radioButton = new JRadioButton(label, null, true);
-        radioButton.addActionListener(e -> {
-            selectCard(label);
-            showCard(label);
-        });
+        radioButton.addActionListener(e -> switchRepositorySourcePanel(label));
         return radioButton;
     }
 
