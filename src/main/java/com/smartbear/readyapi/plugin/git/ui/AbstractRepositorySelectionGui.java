@@ -11,6 +11,7 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.eviware.soapui.support.StringUtils.repeat;
 import static com.eviware.soapui.support.UISupport.createLabelLink;
 
 public abstract class AbstractRepositorySelectionGui {
@@ -104,16 +105,5 @@ public abstract class AbstractRepositorySelectionGui {
 
     protected RepositoryForm getSelected() {
         return selected;
-    }
-
-    private static String repeat(String s, int count) {
-        if (count <= 0 || StringUtils.isNullOrEmpty(s)) {
-            return "";
-        }
-        StringBuilder stringBuilder = new StringBuilder(s);
-        for (int i = 1; i < count; i++) {
-            stringBuilder.append(s);
-        }
-        return stringBuilder.toString();
     }
 }
