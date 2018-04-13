@@ -8,11 +8,16 @@ import com.smartbear.readyapi.plugin.git.GitCommandHelper;
 
 import java.awt.Component;
 import java.io.File;
+import java.util.List;
 
 import static com.smartbear.readyapi.plugin.git.ui.help.HelpUrls.GIT_PLUGIN_WIKI;
 
 public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui implements ImportProjectFromVcsGui {
     private GitCommandHelper gitCommandHelper;
+
+    public static final String LABEL_LOCAL = "Local";
+
+    private LocalRepositoryForm localRepositoryForm = new LocalRepositoryForm();
 
     public ImportProjectFromGitGui() {
         this.gitCommandHelper = new GitCommandHelper();
@@ -47,5 +52,21 @@ public class ImportProjectFromGitGui extends AbstractRepositorySelectionGui impl
     @Override
     public boolean isLocal() {
         return getSelected().isLocal();
+    }
+
+    @Override
+    protected List<RepositorySelection> getRepositorySelections() {
+        List<RepositorySelection> repositorySelections = super.getRepositorySelections();
+        repositorySelections.add(new RepositorySelection(LABEL_LOCAL, createRadioButton(LABEL_LOCAL), localRepositoryForm));
+        return repositorySelections;
+    }
+
+    @Override
+    protected void selectCard(String label) {
+        if (LABEL_LOCAL.equals(label)) {
+            selected = localRepositoryForm;
+        } else {
+            super.selectCard(label);
+        }
     }
 }
